@@ -1,4 +1,4 @@
-MyCat 分库
+[MyCat](https://snailclimb.gitee.io/javaguide/#/docs/java/basis/Java%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86) 分库
 
 # Redis学习
 
@@ -58,19 +58,9 @@ redis-cli -h 127.0.0.1 -p 6379
 
 
 
-
-
-
-
-
-
-
-
 1、内存存储。持久化。内存中是断电就没有 需要持久化 rdb aof
 
 redis-benchmark redis 性能测试 
-
-
 
 
 
@@ -332,7 +322,7 @@ OK
 
 > **无序不能重复**
 
-[官网命令](http://www.redis.cn/commands.html#set)
+[官网命令地址](http://www.redis.cn/commands.html#set)
 
 ```bash
 #添加一个或多个指定的member元素到集合的 key中
@@ -393,8 +383,6 @@ OK
 (integer) 1
 127.0.0.1:6379> SISMEMBER set 11111
 (integer) 0
-
-
 
 127.0.0.1:6379> SMEMBERS set
  1) "1"
@@ -581,13 +569,9 @@ OK
 
 ## 5、Zset 
 
-> [官网地址](http://www.redis.cn/commands/zadd.html)
+> [官网命令地址](http://www.redis.cn/commands/zadd.html)
 >
 > 有序集合  有权重 排序 score
-
-
-
-## 
 
 ```bash
 #添加值
@@ -744,7 +728,6 @@ OK
 1) "j"
 2) "h"
 
-
 #指定分数之间的值
 127.0.0.1:6379> ZREVRANGEBYSCORE zset11 10 5
 1) "j"
@@ -763,8 +746,6 @@ OK
 5) "c"
 6) "b"
 7) "a"
-
-
 
 #倒序排序
 127.0.0.1:6379> ZREVRANGE zset11 0 -1
@@ -816,7 +797,7 @@ OK
 
 > 地理位置 geo 
 >
-> [命令地址](http://www.redis.cn/commands/geoadd.html)
+> [官网命令地址](http://www.redis.cn/commands/geoadd.html)
 
 - 有效的经度从-180度到180度。
 
@@ -869,7 +850,7 @@ OK
 
 > 在数学上，基数或势，即集合中包含的元素的“个数”（参见势的比较），是日常交流中基数的概念在数学上的精确化（并使之不再受限于有限情形）
 >
-> [官网命令](http://www.redis.cn/commands/pfmerge.html)
+> [官网命令地址](http://www.redis.cn/commands/pfmerge.html)
 
 可以顺带学一下布隆过滤器 
 
@@ -878,10 +859,6 @@ A{1,3,5,7,8,7}
 A{1,3,5,7,8,}
 
 什么是基数：集合内不重复的元素 =5 可以接受误差
-
-
-
-
 
 ```bash
 # 添加参数 唯一对象的基数
@@ -961,8 +938,6 @@ OK
 "abcd`a\x00\x00\x00\x00\x00\x00\x00\x00
 ```
 
-
-
 ### 常见用途
 
 - 统计用户信息 活跃 不活跃 登陆 未登陆 打卡  365天打卡 两个状态都是可以使用bitmaps
@@ -974,7 +949,7 @@ OK
 
 > 事务 ACID 同时成功 同时失败 原子性
 >
-> [事务命令](http://www.redis.cn/commands.html#transactions)
+> [事务官网命令](http://www.redis.cn/commands.html#transactions)
 
 Redis事务 单条保存是保存原子性的。但是事务不保存原子性 
 
@@ -1069,7 +1044,6 @@ public class RawJedisTest {
         System.out.println(key);
     }
 }
-
 
 
 public class TestHash {
@@ -1298,8 +1272,6 @@ public class TestString {
 
 
 
-
-
 Spring推荐使用lettuce连接
 
 **lettuce：采用netty  实例可以在多个线程中进行共享 不存在线程不安全的情况 减少线程数 更像NIO模式**
@@ -1320,10 +1292,6 @@ spring.redis.lettuce.pool.max-wait=-1ms
 spring.redis.lettuce.shutdown-timeout=3000ms
 spring.redis.lettuce.pool.min-idle=0
 ```
-
-
-
-
 
 
 
@@ -1576,7 +1544,7 @@ tcp-keepalive 300
 # By default Redis does not run as a daemon. Use 'yes' if you need it.
 # Note that Redis will write a pid file in /var/run/redis.pid when daemonized.
 # When Redis is supervised by upstart or systemd, this parameter has no impact.
-#houtaiqidong
+#后台启动
 #守护进程 yes
 daemonize yes
 
@@ -2221,7 +2189,6 @@ acllog-max-len 128
 # The requirepass is not compatable with aclfile option and the ACL LOAD
 # command, these will cause requirepass to be ignored.
 #设置密码
-
 # requirepass foobared
 requirepass JackGao5210
 
@@ -3365,14 +3332,6 @@ jemalloc-bg-thread yes
 
 
 
-
-
-
-
-
-
-
-
 ### 3、Redis持久化
 
 > 快照-持久化 在规定的时间内 执行了多少次的操作 则会持久化到文件.rdb .aof 中
@@ -3423,8 +3382,6 @@ Redis会单独创建fork一个子进程来进行持久化 会先将数据写入�
 
 
 
-
-
 ### 2）AOF（append only file）
 
 > 将我们的所有的命令都记录下来。
@@ -3445,12 +3402,8 @@ appendfilename "appendonly.aof"
 appendfsync everysec
 
 #从不同步 效率最高
-# appendfsync no
+# appendfsync no 
 ```
-
-
-
-#### 
 
 #### 触发机制：
 
@@ -3472,11 +3425,7 @@ appendfsync everysec
 
 - ​	数据完整性：每一次修改都保存 文件完整性更好
 
-
-
 ![image-20210321123127285](https://tva1.sinaimg.cn/large/008eGmZEly1gorf27pp4ij30qu0giq72.jpg)
-
-
 
 
 
@@ -3572,8 +3521,6 @@ Pub/Sub从字面上理解就是发布帝和订阅，在Redis中，你可以设�
 - 订阅 关注系统 ---微信微博关注系统
 
   
-
-
 
 ## 七、Redis主从复制
 
@@ -3753,7 +3700,7 @@ Redis从2.8版本正式推出Sentinel哨兵架构来解决这个问题。
 
 
 
-###### 1、配置sentinel.conf
+###### 1、配置sentinel.conf**（redis的哨兵）**
 
 ```bash
  # 禁止保护模式
@@ -4119,17 +4066,11 @@ sentinel deny-scripts-reconfig yes
 
 解决办法
 
-
-
 ![image-20210403232533178](/Users/gaoshang/Library/Application Support/typora-user-images/image-20210403232533178.png)
 
 
 
 ![image-20210403232556125](/Users/gaoshang/Library/Application Support/typora-user-images/image-20210403232556125.png)
-
-
-
-
 
 量太大
 
@@ -4138,8 +4079,6 @@ sentinel deny-scripts-reconfig yes
 
 
 ![image-20210403232721157](/Users/gaoshang/Library/Application Support/typora-user-images/image-20210403232721157.png)
-
-
 
 
 
@@ -4152,12 +4091,6 @@ sentinel deny-scripts-reconfig yes
 
 
 ![image-20210403233011872](https://tva1.sinaimg.cn/large/008eGmZEgy1gp6z6nqx1uj30so06vdk9.jpg)
-
-
-
-
-
-[ElasticSearch](https://www.bilibili.com/video/BV17a4y1x7zq?p=1)
 
 
 
