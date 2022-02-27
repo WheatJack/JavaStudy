@@ -4,6 +4,10 @@
 
 
 
+
+
+## 一、基础学习
+
 ### 1、通用语法及分类
 
 #### SQL分类
@@ -39,6 +43,8 @@ use test_database;
 ```mysql
 // 查询数据库所有的表
 show tables;
+// 查询所有表的状态
+show table status;
 // 查询表结构
 desc table_name;
 // 查询指定表的建表语句
@@ -58,11 +64,13 @@ CREate Table table_name (
 )[comment 表注释];
 
 // 创建表
-CREate Table table_name (
-'id' varchar(50) comment '注释',
-'id1' varchar(50) comment '注释',
-'id2' varchar(50) comment '注释'
-)comment '表注释';
+CREATE TABLE `employ` (
+  `id` varchar(50) NOT NULL COMMENT '主健id',
+  `name` varchar(5) DEFAULT NULL COMMENT 'name',
+  `time` datetime DEFAULT NULL COMMENT '创建时间',
+  `age` int DEFAULT NULL COMMENT '年纪',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='员工表';
 ```
 
 
@@ -97,7 +105,7 @@ alter table table_name modify 字段 类型(长度) [comment 注释] [约束];
 // 修改字段名和字段类型
 Alter table table_name change 旧字段名 新字段名 类型(长度) [comment 注释] [约束];
 // 删除字段
-alter table_name drop 字段名;
+alter table table_name drop 字段名;
 // 修改表名
 alter table table_name rename to new_table_name;
 // 删除表
@@ -121,7 +129,7 @@ insert into table_name values (值1,值2......);
 insert into table_name (字段1,字段2) values (值1,值2......),(值1,值2......),(值1,值2......);
 insert into table_name values (值1,值2......),(值1,值2......),(值1,值2......);
 // 从别的表取数 插入到这个表
-insert into table_name select *from table_name2;
+insert into table_name select * from table_name2;
 ```
 
 Notes：
@@ -260,8 +268,6 @@ Select 字段列表 from table_name  order by 字段1 asc,字段2 desc;
 // 语法
 select * from table_name limit 起始索引,查询记录数;
 
-
-
 ```
 
 
@@ -371,19 +377,293 @@ update employ set  id = lpad(id,5,'0');
 
 #### 数值函数
 
+![image-20220223212333518](https://tva1.sinaimg.cn/large/e6c9d24egy1gznrhydzjlj20ri07fwex.jpg)
+
+```mysql
+// 向上取整 --13
+select ceil(12.1);
+// 向下取整  --1
+select floor(1.1);
+//返回x/y的模 --20
+select mod(20,100);
+// 返回0-1的随机数
+select rand();
+// 参数x的四舍五入，保留指定小数 ----1.2222
+select round(1.222222,4);
+```
+
+生成6位随机数
+
+```mysql
+select lpad(round((select rand()*1000000),0),6,'0');
+```
+
 
 
 #### 日期函数
+
+![image-20220223213455206](https://tva1.sinaimg.cn/large/e6c9d24egy1gznrtp75f4j20rr0bbmy7.jpg)
+
+```mysql
+// 当前日期
+select curdate();
+// 当前时间
+select curtime();
+// 当前日期和时间
+select now();
+// 获取data的年份
+select year(now());
+// 获取data的月份
+select month(now());
+// 获取data的日份
+select day(now());
+// 是时间相加
+select date_add(now(),INTERVAL 100 YEAR );
+select date_add(now(),INTERVAL 100 day );
+select date_add(now(),INTERVAL 100 month );
+// 时间差
+select datediff(now(),now());
+```
 
 
 
 #### 流程函数
 
+![image-20220223214454850](https://tva1.sinaimg.cn/large/e6c9d24egy1gzns458rvyj20rs06pq3n.jpg)
+
+
+
+```mysql
+-- IFNULL
+select ifnull('',111);
+select ifnull('2222',111);
+select ifnull(null,'22');
+-- IF
+select if(true,'1','0');
+-- CASE WHEN
+select name, (case age when 10 then '10岁' when 11 then '11岁' else '不是这个年纪' end) as age
+from employ;
+
+```
+
+
+
+### 3、约束
+
+> 作用于表中字段上的规则，用于限制存储在表中的数据
+
+#### 概述
+
+![image-20220223215903635](https://tva1.sinaimg.cn/large/e6c9d24egy1gznsitdjlgj20ok081q3y.jpg)
+
+Notes：
+
+**约束是作用于表字段上的，可以在创建表/修改表的时候添加约束**
+
+ 
+
+#### 约束演示
+
+![image-20220223220302958](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220223220302958.png)
+
+```mysql
+CREATE TABLE `table_user` (
+  `id` int NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `name` varchar(10) NOT NULL COMMENT 'name',
+  `age` int DEFAULT NULL COMMENT '年纪',
+  `status` char(1) DEFAULT '1' COMMENT 'status',
+  `gender` char(1) NOT NULL COMMENT 'gender',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`),
+  CONSTRAINT `table_user_chk_1` CHECK (((`age` > (0 & `age`)) <= 120))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户表';
+```
+
+
+
+#### 外键约束
+
+> 目前不在使用强关联物理外键约束
+
+```mssql
+-- 添加外键
+alter table  employ add constraint  foreign_key_id foreign key (id) references table_user(id);
+-- 删除外键
+alter table  employ drop foreign key  foreign_key_id;
+```
+
+
+
+##### 删除/更新行为
+
+![image-20220223223305281](https://tva1.sinaimg.cn/large/e6c9d24egy1gznti7j9hyj20sr06x3zs.jpg)
+
+
+
+### 4、多表查询
+
+
+
+#### 多表关系
+
+*关系分为：*
+
+- 一对一**（单表拆分，在任意一方加入外键盘，关联另一方的外键，并设置外键为unique）**
+- 一对多
+- 多对多**（需要中间表维护关系）**
+
+
+
+#### 多表查询概述
+
+```mysql
+-- 两个表关联 ---笛卡尔积
+select * from employ,table_user;
+```
+
+
+
+#### 内连接
+
+> 查询AB交集的部分数据
+
+##### 隐式内连接
+
+```mysql
+select * from employ e,gift_history g where e.id =g.id;
+```
+
+  
+
+##### 显式内连接
+
+```mysql
+select * from employ e inner join  gift_history g on  e.id =g.id;
+```
 
 
 
 
 
+#### 外连接
+
+##### 左外连接
+
+> 查询左表所有数据，以及两张表交集部分数据
+
+```mysql
+select * from employ  e left join table_user P on e.id = P.id where e.name is not null ;
+```
+
+
+
+##### 右外连接
+
+> 查询右表所有数据，以及两张表交集部分数据
+
+```mysql
+select * from employ  e right outer join  table_user P on e.id = P.id where e.name is not null ;
+```
+
+
+
+#### 自连接
+
+> 自己与自己关联查询
+
+```mysql
+-- 显示自连接
+select * from employ  e1 join employ e2 on e1.id = e2.id;
+-- 隐式自连接
+select * from employ  e1 , employ e2 on e1.id = e2.id;
+```
+
+业务场景：比如员工表，需要查询员工的上级领导是谁，那么就自连接，根据自己的manager_id 等于自己表的id ，那么就可以查询对应的信息出来
+
+Notes：自连接查询，可以是内连接查询，也可以是外连接查询
+
+
+
+#### 联合查询
+
+> 对于union查询，就是把多次查询的结果合并起来，形成一个新的查询结果集
+
+union，union all
+
+对于union查询，就是把多次查询的结果合并起来，形成一个新的查询结果集
+
+```mysql
+select * from employ where age>10
+union
+select * from employ where age<10
+union
+select a.id,a.age,a.name,a.status
+from table_user a where a.id>1;
+```
+
+Notes：
+
+- 对于联合查询的多张表的数据必须保持一致，字段类型也需要保持一致
+- union all 会将全部的数据直接合并在一起，union会对合并之后的数据去重
+
+
+
+#### 子查询
+
+> sql中嵌套select语句
+
+```mysql
+select * from table_name where column =(select id form table_name2 where ....);
+```
+
+
+
+##### 标量子查询
+
+查询结果为单个值 ---一种条件 确定
+
+```mysql
+select * from employ where id > (select id from employ where age ='11');
+```
+
+
+
+##### 列子查询
+
+查询结果为一列--- in、not in 
+
+```mysql
+select * from employ where id in (select id from employ where age >1);
+-- all 用法 满足查询出来的所有条件
+select * from employ where id > all (select id from employ where age ='1');
+-- some 用法 满足查询出来的其中一个条件
+select * from employ where id > some (select id from employ where age ='1');
+```
+
+
+
+##### 行子查询
+
+查询结果为一行
+
+```mysql
+-- 新语法
+select * from employ where  (name,age)!=(select name,age from employ where id =00011);
+
+```
+
+
+
+##### 表子查询
+
+查询结果为多行多列
+
+```mysql
+-- 多条件in 🐮🍺
+select * from employ where  (name,age) in(select name,age from employ where id is not null);
+-- 子查询当一个表
+select * from (select * from employ where time<now()) as a;
+```
 
 
 
