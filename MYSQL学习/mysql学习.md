@@ -755,3 +755,164 @@ set session  transaction isolation level serializable ;
 
 
 
+## 二、进阶学习
+
+
+
+### 1、存储引擎
+
+#### MYSQL体系结构
+
+![image-20220227154727549](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs49dzy7vj20ms0drmyv.jpg)
+
+
+
+- 连接层：最上层是一些客户端和连接服务，主要完成一些类似连接处理、授权认证、及相关的安全方案。服务器也会为安全接入的每一个客户端验证它所具有的操作权限
+- 服务层：第二层架构主要完成大多数的核心服务功能，比如sql接口，并完成缓存的查询，SQL的分析和优化，部分内置函数的执行，所有跨存储引擎的功能也在这一层实现，比如过程、函数等
+- 引擎层：存储引擎真正的负责mysql中数据的存储和提取，服务器通过API和存储引擎进行通行。不同的存储引擎具有不同的功能，这样我们可以根据自己的需要，来选去合适的存储引擎
+- 存储层：主要是将数据存储在文件系统上，并完成与存储引擎的交互
+
+
+
+#### 存储引擎简介
+
+ 存储引擎就是存储数据、建立索引、更新/查询数据等技术等实现方式，**存储引擎是基于表的**，而不是基于库的，所以存储引擎也可以被称为表类型。
+
+
+
+```mysql
+-- 默认存储引擎是InnoDB
+-- 查询所有的支持的存储引擎
+ show engines;
+-- 指定引擎是在创建表中创建
+```
+
+![image-20220227155718647](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs4jmxmihj21us0dwq6k.jpg)
+
+
+
+#### 存储引擎特点
+
+##### InnoDB
+
+###### **InnoDB特点**
+
+- DML操作遵循ACID模型，支持事务
+- 行级锁，提高并发访问性能
+- 支持外键 FOREIGN KEY约束，保证数据的完整性和正确性
+
+###### **文件**
+
+```
+xxx.ibd：代表是的是表名，innoDB引擎的每张表都会对应这样一个表空间文件，存储该表的表结构（frm、sdi）、数据和索引。
+参数：innodb_file_per_table  该参数是置顶是每个表放一个表空间文件和多个表公用一个表空间文件
+```
+
+```mysql
+-- 查看设置
+show variables like '%innodb_file_per_table%';
+```
+
+![image-20220227161255522](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs4zvmb3lj20k602wjrf.jpg)
+
+
+
+###### 逻辑存储结构
+
+![image-20220227160549373](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs4shhqg6j20sg0bqtai.jpg)
+
+
+
+##### MyISAM
+
+介绍：是早期的默认存储引擎
+
+###### 特点：
+
+- 不支持事务，不支持外键
+- 支持表锁，不支持行锁
+- 访问速度快
+
+
+
+###### 文件：
+
+xxx.sdi：存储表结构信息
+
+xxx.MYD：存储数据
+
+xxx.MYI：存储索引
+
+
+
+##### Memory
+
+介绍：Memory引擎的表数据存储在内存中的，由于收到硬件问题、断电的影响，只能将这些表作为临时表或者缓存使用。
+
+###### 特点：
+
+- 内存存放
+- hash索引（默认）
+
+###### 文件：
+
+xxx.sdi：存储表结构信息
+
+
+
+##### 区别：
+
+![image-20220227161911363](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs56edrmtj20rc0begmq.jpg)
+
+
+
+##### 存储引擎选择
+
+MyISAM被mongoDB替换
+
+Memory被Redis替换
+
+![image-20220227162102603](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs58bm39cj20si0audha.jpg)
+
+
+
+### 2、索引
+
+
+
+### 3、SQL优化
+
+
+
+### 4、视图/存储过程/触发器
+
+
+
+### 5、锁
+
+
+
+### 6、InnoDB引擎
+
+
+
+### 7、Mysql管理
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
