@@ -1,4 +1,4 @@
-## MySQL8.0.26-Linux版安装
+## MySQL安装
 
 ### 1. 准备一台Linux服务器
 
@@ -12,13 +12,13 @@ Linux的版本为 CentOS7;
 
 https://downloads.mysql.com/archives/community/
 
-![image-20211031230239760](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs5e2v49dj21ha0kdjw7.jpg) 
+![image-20211031230239760](https://tva1.sinaimg.cn/large/e6c9d24egy1h0nfodwok1j21ha0kdjw7.jpg) 
 
 
 
 ### 3. 上传MySQL安装包
 
-![image-20211031231930205](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs5e8tliej21c40c10x3.jpg) 
+![image-20211031231930205](https://tva1.sinaimg.cn/large/e6c9d24egy1h0nfoibbqej21c40c10x3.jpg) 
 
 
 
@@ -75,8 +75,10 @@ systemctl stop mysqld
 
 ### 7. 查询自动生成的root用户密码
 
-```
+```shell
 grep 'temporary password' /var/log/mysqld.log
+# 密码如下
+A temporary password is generated for root@localhost: +?SiXP15khjj
 ```
 
 命令行执行指令 :
