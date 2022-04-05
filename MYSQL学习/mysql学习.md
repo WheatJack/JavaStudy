@@ -3200,7 +3200,60 @@ Mycat是开源的、活跃的、基于Java语言编写的MYSQL数据库中间件
 
 
 
+**Mycat安装**
+
+Mycat是采用java语言开发的开源的数据库中间件，支持Windows和Linux运行环境，下面介绍MyCat的Linux中的环境搭建。我们需要在准备好的服务器中安装如下软件。
+
+* JDK
+* MYSQL
+* Mycat
+
+| 服务器          | 安装软件          | 说明            |
+| --------------- | ----------------- | --------------- |
+| 192.168.191.133 | JDK、Mycat、MYSQL | Mycat中间件服务 |
+|                 | MYSQL             | 分片服务        |
+
+
+
+具体的安装步骤: 参考资料中提供的 《MyCat安装文档》即可，里面有详细的安装及配置步骤。
+
+
+
+**目录分析**
+
+![image-20220326192946680](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220326192946680.png)
+
+**bin ：**存放可执行文件，用于启动停止
+
+**mycat conf：**存放mycat的配置文件 
+
+**lib：**存放mycat的项目依赖包(jar) 
+
+**logs：**存放mycat的日志文件
+
+
+
+---
+
+
+
 #### Mycat入门
+
+ **概念介绍**
+
+![image-20220326193356234](https://tva1.sinaimg.cn/large/e6c9d24egy1h0nijct8qpj20s00cy0u6.jpg)
+
+
+
+**需求**
+
+由于 tb_order 表中数据量很大，磁盘IO及容量都到达了瓶颈，现在需要对 tb_order 表进行数 据分片，分为三个数据节点，每一个节点主机位于不同的服务器上, 具体的结构，参考下图:
+
+**通过水平分库，一个表分为到多个库**
+
+
+
+![image-20220326193831567](https://tva1.sinaimg.cn/large/e6c9d24egy1h0nio354w6j20ek09v74l.jpg)
 
 
 
@@ -3212,29 +3265,732 @@ Mycat是开源的、活跃的、基于Java语言编写的MYSQL数据库中间件
 
 #### Mycat配置
 
+##### 分片配置
+
+**Schema.xml配置**
+
+![image-20220326203306935](https://tva1.sinaimg.cn/large/e6c9d24egy1h0nk8whuh8j20w90cx415.jpg)
+
+
+```xml
+<!DOCTYPE mycat:schema SYSTEM "schema.dtd">
+<mycat:schema xmlns:mycat="http://io.mycat/"> 
+<!-- 分片规则 逻辑库：DB01 -->
+<schema name="DB01" checkSQLschema="true" sqlMaxLimit="100">
+            <!-- 逻辑表 travelrecord 会分为三片  -->
+            <table name="tb_order" dataNode="dn1,dn2" rule="auto-sharding-long" />
+            <!-- 可爱的分割线 -->
+            <table name="company" primaryKey="ID" type="global" dataNode="dn1,dn2,dn3" />
+            <table name="goods" primaryKey="ID" type="global" dataNode="dn1,dn2" />
+            <table name="hotnews" primaryKey="ID" autoIncrement="true" dataNode="dn1,dn2,dn3" rule="mod-long" />
+            <table name="employee" primaryKey="ID" dataNode="dn1,dn2" rule="sharding-by-intfile" />
+            <table name="customer" primaryKey="ID" dataNode="dn1,dn2" rule="sharding-by-intfile">
+                    <childTable name="orders" primaryKey="ID" joinKey="customer_id" parentKey="id">
+                            <childTable name="order_items" joinKey="order_id" parentKey="id" />
+                    </childTable>
+                    <childTable name="customer_addr" primaryKey="ID" joinKey="customer_id" parentKey="id" />
+            </table>
+    </schema>
+
+    <!-- 节点主机 -->
+    <dataNode name="dn1" dataHost="localhost1" database="db01" />
+    <dataNode name="dn2" dataHost="localhost2" database="db01" />
+    <!-- <dataNode name="dn3" dataHost="localhost1" database="db1" /> -->
+   
+    <dataHost name="localhost1" maxCon="1000" minCon="10" balance="0" writeType="0" dbType="mysql" dbDriver="native" switchType="1"  slaveThreshold="100">
+            <heartbeat>select user()</heartbeat>
+            <writeHost host="master" url="jdbc:mysql://192.168.191.133:3306" user="root" password="12345678">
+                    <!-- <readHost host="hostS2" url="192.168.1.200:3306" user="root" password="xxx" /> -->
+            </writeHost>
+            <!-- <writeHost host="hostS1" url="localhost:3316" user="root" password="123456" /> -->
+    </dataHost>
+
+     <dataHost name="localhost2" maxCon="1000" minCon="10" balance="0" writeType="0" dbType="mysql" dbDriver="native" switchType="1"  slaveThreshold="100">
+            <heartbeat>select user()</heartbeat>
+            <writeHost host="master" url="jdbc:mysql://192.168.191.131:3306" user="root" password="12345678"></writeHost>
+    </dataHost>
+
+</mycat:schema>
+```
+**server.xml配置**
+
+配置权限等等信息
+
+```xml
+<user name="root" defaultAccount="true">
+                <property name="password">12345678</property>
+                <property name="schemas">DB01</property>
+                
+                <!-- 表级 DML 权限设置 -->
+                <!--            
+                <privileges check="false">
+                        <schema name="TESTDB" dml="0110" >
+                                <table name="tb01" dml="0000"></table>
+                                <table name="tb02" dml="1111"></table>
+                        </schema>
+                </privileges>           
+                 -->
+        </user>
+
+        <user name="user">
+                <property name="password">user</property>
+                <property name="schemas">DB01</property>
+                <property name="readOnly">true</property>
+        </user>
+```
+
+
+
+**Mycat启动**
+
+```shell
+#切换到/app/mycat/mycat/bin   启动后 占用8066端口
+# 启动
+bin/mycat start
+#关闭
+bin/mycat stop
+
+```
+
+检查是否启动完成，查看log下的wrapper日志。
+
+![image-20220326214826661](https://tva1.sinaimg.cn/large/e6c9d24egy1h0nmfaepmpj217s03yt9n.jpg)
+
+<user name="root" defaultAccount="true">
+
+​                <property name="password">123456</property>
+
+​                <property name="schemas">TESTDB</property>
+
+​                
+
+​                <!-- 表级 DML 权限设置 -->
+
+​                <!--            
+
+​                <privileges check="false">
+
+​                        <schema name="TESTDB" dml="0110" >
+
+                                <table name="tb01" dml="0000"></table>
+
+<user name="root" defaultAccount="true">
+
+​                <property name="password">123456</property>
+
+​                <property name="schemas">TESTDB</property>
+
+​                
+
+​                <!-- 表级 DML 权限设置 -->
+
+​                <!--            
+
+​                <privileges check="false">
+
+​                        <schema name="TESTDB" dml="0110" >
+
+                                <table name="tb01" dml="0000"></table>
+
+
+
+##### 分片测试
+
+```mysql
+# 通过如下指令，就可以连接登陆mycat
+mysql -h 127.0.0.1 -P 8066 -uroot -p12345678;
+
+```
+
+**登陆成功截图：**
+
+![image-20220326215343411](https://tva1.sinaimg.cn/large/e6c9d24egy1h0nmkrcqyuj214g0ge429.jpg)
+
+
+
+##### **schema.xml**
+
+schema.xml 作为MyCat中最重要的配置文件之一 , 涵盖了MyCat的逻辑库 、 逻辑表 、 分片规 则、分片节点及数据源的配置。
+
+主要包含以下三组标签:
+
+* schema标签
+* datanode标签 
+* datahost标签
+
+
+
+**schema标签**
+
+```xml
+<schema name="DB01" checkSQLschema="true" sqlMaxLimit="100">
+		<table name="order" dataNode="dn1,dn2,dn3" rule="auto-sharding-long" />
+	</schema>
+```
+
+<schema name="DB01" checkSQLschema="true" sqlMaxLimit="100">
+
+        <table name="order" dataNode="dn1,dn2,dn3" rule="auto-sharding-long" />
+
+<schema name="DB01" checkSQLschema="true" sqlMaxLimit="100">
+
+        <table name="order" dataNode="dn1,dn2,dn3" rule="auto-sharding-long" />
+
+**schema 标签**用于定义 MyCat实例中的逻辑库 , 一个MyCat实例中, 可以有多个逻辑库 , 可以通 过 schema 标签来划分不同的逻辑库。MyCat中的逻辑库的概念，等同于MySQL中的database概念 , 需要操作某个逻辑库下的表时, 也需要切换逻辑库(use xxx)。
+
+核心属性:
+
+* name:指定自定义的逻辑库库名(区分大小写)
+* checkSQLschema:在SQL语句操作时指定了数据库名称，执行时是否自动去除;true:自动去除，false:不自动去除 
+* sqlMaxLimit:如果未指定limit进行查询，列表查询模式查询多少条记录
+
+
+
+**table 标签**定义了MyCat中逻辑库schema下的逻辑表 , 所有需要拆分的表都需要在table标签中定义。
+
+```xml
+<schema name="DB01" checkSQLschema="true" sqlMaxLimit="100">
+		<table name="order" dataNode="dn1,dn2,dn3" rule="auto-sharding-long" />
+	</schema>
+```
+
+核心属性:
+
+* name:定义逻辑表表名，在该逻辑库下唯一 dataNode:定义逻辑表所属的 
+* dataNode，该属性需要与dataNode标签中name对应;多个 dataNode逗号分隔
+* rule:分片规则的名字，分片规则名字是在rule.xml中定义的
+* primaryKey:逻辑表对应真实表的主键 
+* type:逻辑表的类型，目前逻辑表只有全局表和普通表，如果未配置，就是普通表;全局表，配 置为 global
+
+
+
+**datanode标签**
+
+```xml
+	<dataNode name="dn1" dataHost="dhost1" database="db01" />
+	<dataNode name="dn2" dataHost="dhost2" database="db01" />
+	<dataNode name="dn3" dataHost="dhost3" database="db01" />
+```
+
+核心属性:
+
+* name:定义数据节点名称
+* dataHost:数据库实例主机名称，引用自 dataHost 标签中name属性 
+* database:定义分片所属数据库
+
+
+
+**datahost标签**
+
+该标签在MyCat逻辑库中作为底层标签存在, 直接定义了具体的数据库实例、读写分离、心跳语句。 
+
+```xml
+<dataHost name="dhost2" maxCon="1000" minCon="10" balance="0"
+			  writeType="0" dbType="mysql" dbDriver="jdbc" switchType="1"  slaveThreshold="100">
+		<heartbeat>select user()</heartbeat>
+		
+		<writeHost host="master" url="jdbc:mysql://192.168.191.131:3306?useSSL=false&amp;serverTimezone=Asia/Shanghai&amp;characterEncoding=utf8" user="root" password="12345678" />
+	</dataHost>
+```
+
+核心属性:
+
+* name:唯一标识，供上层标签使用
+* maxCon/minCon:最大连接数/最小连接数
+* balance:负载均衡策略，取值 0,1,2,3 
+* writeType:写操作分发方式(0:写操作转发到第一个writeHost，第一个挂了，切换到第二个;1:写操作随机分发到配置的writeHost)
+* dbDriver:数据库驱动，支持 native、jdbc
+
+
+
+##### **rule.xml**
+
+rule.xml中定义所有拆分表的规则, 在使用过程中可以灵活的使用分片算法, 或者对同一个分片算法 使用不同的参数, 它让分片过程可配置化。主要包含两类标签:tableRule、Function。
+
+```mysql
+<table name="order" dataNode="dn1,dn2,dn3" rule="auto-sharding-long" />
+```
+
+rule文件中
+
+```xml
+<!--规则-->
+<tableRule name="auto-sharding-long">
+		<rule>
+			<columns>id</columns>
+			<algorithm>rang-long</algorithm>
+		</rule>
+</tableRule>
+	
+<!--定义的函数-->
+<function name="rang-long"class="io.mycat.route.function.AutoPartitionByLong">
+  <!--定义的配置参数-->
+		<property name="mapFile">autopartition-long.txt</property>
+</function>
+	
+```
+
+
+
+
+
+##### **server.xml**
+
+server.xml配置文件包含了MyCat的系统配置信息，主要有两个重要的标签:system、user。
+
+**system标签**
+
+```xml
+<system>
+	<property name="nonePasswordLogin">0</property> <!-- 0为需要密码登陆、1为不需要密码登陆 ,默认为0，设置为1则需要指定默认账户-->
+	<property name="useHandshakeV10">1</property>
+	<property name="useSqlStat">0</property>  <!-- 1为开启实时统计、0为关闭 -->
+	<property name="useGlobleTableCheck">0</property>  <!-- 1为开启全加班一致性检测、0为关闭 -->
+	<property name="sqlExecuteTimeout">300</property>  <!-- SQL 执行超时 单位:秒-->
+</system>
+```
+
+主要配置MyCat中的系统配置信息，对应的系统配置项及其含义，如下:
+
+| 属性                      | 取值       | 含义                                                         |
+| ------------------------- | ---------- | ------------------------------------------------------------ |
+| charset                   | utf8       | 设置Mycat的字符集,  字符集需要与MySQL的字符集保持一致        |
+| nonePasswordLogin         | 0,1        | 0为需要密码登陆、1为不需要密码登陆  ,默认为0，设置为1则需要指定默认账户 |
+| useHandshakeV10           | 0,1        | 使用该选项主要的目的是为了能够兼容高版本的jdbc驱动,  是否采用HandshakeV10Packet来与client进行通信, 1:是, 0:否 |
+| useSqlStat                | 0,1        | 开启SQL实时统计,  1 为开启 , 0 为关闭 ; 开启之后, MyCat会自动统计SQL语句的执行情况 ; mysql -h 127.0.0.1 -P 9066 -u  root -p 查看MyCat执行的SQL, 执行效率比较低的SQL , SQL的整体执行情况、读写比例等 ; show @@sql ; show  @@sql.slow ; show @@sql.sum ; |
+| useGlobleTableCheck       | 0,1        | 是否开启全局表的一致性检测。1为开启  ，0为关闭 。            |
+| sqlExecuteTimeout         | 1000       | SQL语句执行的超时时间  , 单位为 s ;                          |
+| sequnceHandlerType        | 0,1,2      | 用来指定Mycat全局序列类型，0  为本地文件，1 为数据库方式，2 为时间戳列方式，默认使用本地文件方式，文件方式主要用于测试 |
+| sequnceHandlerPattern     | 正则表达式 | 必须带有MYCATSEQ或者  mycatseq进入序列匹配流程 注意MYCATSEQ_有空格的情况 |
+| subqueryRelationshipCheck | true,false | 子查询中存在关联查询的情况下,检查关联字段中是否有分片字段  .默认 false |
+| useCompression            | 0,1        | 开启mysql压缩协议  , 0 : 关闭, 1 : 开启                      |
+| fakeMySQLVersion          | 5.5,5.6    | 设置模拟的MySQL版本号                                        |
+| defaultSqlParser          |            | 由于MyCat的最初版本使用了FoundationDB的SQL解析器,  在MyCat1.3后增加了Druid解析器, 所以要设置defaultSqlParser属性来指定默认的解析器; 解析器有两个 : druidparser  和 fdbparser, 在MyCat1.4之后,默认是druidparser, fdbparser已经废除了 |
+| processors                | 1,2....    | 指定系统可用的线程数量,  默认值为CPU核心 x 每个核心运行线程数量; processors 会影响processorBufferPool,  processorBufferLocalPercent, processorExecutor属性, 所有, 在性能调优时,  可以适当地修改processors值 |
+| processorBufferChunk      |            | 指定每次分配Socket  Direct Buffer默认值为4096字节, 也会影响BufferPool长度, 如果一次性获取字节过多而导致buffer不够用, 则会出现警告,  可以调大该值 |
+| processorExecutor         |            | 指定NIOProcessor上共享  businessExecutor固定线程池的大小; MyCat把异步任务交给 businessExecutor线程池中,  在新版本的MyCat中这个连接池使用频次不高, 可以适当地把该值调小 |
+| packetHeaderSize          |            | 指定MySQL协议中的报文头长度,  默认4个字节                    |
+| maxPacketSize             |            | 指定MySQL协议可以携带的数据最大大小,  默认值为16M            |
+| idleTimeout               | 30         | 指定连接的空闲时间的超时长度;如果超时,将关闭资源并回收,  默认30分钟 |
+| txIsolation               | 1,2,3,4    | 初始化前端连接的事务隔离级别,默认为  REPEATED_READ , 对应数字为3 READ_UNCOMMITED=1; READ_COMMITTED=2; REPEATED_READ=3;  SERIALIZABLE=4; |
+| sqlExecuteTimeout         | 300        | 执行SQL的超时时间,  如果SQL语句执行超时,将关闭连接; 默认300秒; |
+| serverPort                | 8066       | 定义MyCat的使用端口,  默认8066                               |
+| managerPort               | 9066       | 定义MyCat的管理端口,  默认9066                               |
+
+
+
+**user标签**
+
+配置MyCat中的用户、访问密码，以及用户针对于逻辑库、逻辑表的权限信息，具体的权限描述方式及 配置说明如下:
+
+![image-20220327121156309](https://tva1.sinaimg.cn/large/e6c9d24egy1h0obdqdnp3j20ly09q0ty.jpg)
+
+在测试权限操作时，我们只需要将 privileges 标签的注释放开。 在 privileges 下的schema 标签中配置的dml属性配置的是逻辑库的权限。 在privileges的schema下的table标签的dml属性 中配置逻辑表的权限。
+
 
 
 #### Mycat分片
+
+  在业务系统中, 涉及以下表结构 ,但是由于用户与订单每天都会产生大量的数据, 单台服务器的数据存储及处理能力是有限的, 可以对数据库表进行拆分, 原有的数据库表如下。
+
+![image-20220327163257524](https://tva1.sinaimg.cn/large/e6c9d24egy1h0oixbr74yj20by09c74u.jpg)
+
+![image-20220327163321388](https://tva1.sinaimg.cn/large/e6c9d24egy1h0oixq33xuj20bo0azq3d.jpg)
+
+
+
+##### 垂直拆分
+
+  **修改schema配置**![image-20220327163559732](https://tva1.sinaimg.cn/large/e6c9d24egy1h0oj0i87x1j20un0c4jun.jpg)
+
+```xml
+<?xml version="1.0"?>
+<!DOCTYPE mycat:schema SYSTEM "schema.dtd">
+<mycat:schema xmlns:mycat="http://io.mycat/">
+	<schema name="shopping1" checkSQLschema="true" sqlMaxLimit="100">
+
+		<table name="tb_goods_base" dataNode="dn1" primaryKey="id" />
+    	<table name="tb_goods_brand" dataNode="dn1" primaryKey="id" />
+    	<table name="tb_goods_cat" dataNode="dn1" primaryKey="id" />
+    	<table name="tb_goods_desc" dataNode="dn1" primaryKey="goods_id" />
+    	<table name="tb_goods_item" dataNode="dn1" primaryKey="id" />
+
+    	<table name="tb_order_item" dataNode="dn2" primaryKey="id" />
+    	<table name="tb_order_master" dataNode="dn2" primaryKey="order_id" />
+    	<table name="tb_order_pay_log" dataNode="dn2" primaryKey="out_trade_no" />
+		
+    	<table name="tb_user" dataNode="dn3" primaryKey="id" />
+    	<table name="tb_user_address" dataNode="dn3" primaryKey="id" />
+		<table name="tb_areas_provinces" dataNode="dn3" primaryKey="id"/>
+		<table name="tb_areas_city" dataNode="dn3" primaryKey="id"/>
+    	<table name="tb_areas_region" dataNode="dn3" primaryKey="id"/>
+
+	</schema>
+	
+	<dataNode name="dn1" dataHost="dhost1" database="shopping1" />
+	<dataNode name="dn2" dataHost="dhost2" database="shopping1" />
+	<dataNode name="dn3" dataHost="dhost3" database="shopping1" />
+	
+	<dataHost name="dhost1" maxCon="1000" minCon="10" balance="0"
+			  writeType="0" dbType="mysql" dbDriver="jdbc" switchType="1"  slaveThreshold="100">
+		<heartbeat>select user()</heartbeat>
+		
+		<writeHost host="master" url="jdbc:mysql://192.168.191.137:3306?useSSL=false&amp;serverTimezone=Asia/Shanghai&amp;characterEncoding=utf8" user="root" password="12345678" />
+	</dataHost>
+	
+	<dataHost name="dhost2" maxCon="1000" minCon="10" balance="0"
+			  writeType="0" dbType="mysql" dbDriver="jdbc" switchType="1"  slaveThreshold="100">
+		<heartbeat>select user()</heartbeat>
+		
+		<writeHost host="master" url="jdbc:mysql://192.168.191.135:3306?useSSL=false&amp;serverTimezone=Asia/Shanghai&amp;characterEncoding=utf8" user="root" password="12345678" />
+	</dataHost>
+
+	<dataHost name="dhost3" maxCon="1000" minCon="10" balance="0"
+			  writeType="0" dbType="mysql" dbDriver="jdbc" switchType="1"  slaveThreshold="100">
+		<heartbeat>select user()</heartbeat>
+		
+		<writeHost host="master" url="jdbc:mysql://192.168.191.134:3306?useSSL=false&amp;serverTimezone=Asia/Shanghai&amp;characterEncoding=utf8" user="root" password="12345678" />
+	</dataHost>
+</mycat:schema>
+```
+
+
+
+**修改server配置**
+
+```xml
+<user name="root" defaultAccount="true">
+		<property name="password">12345678</property>
+		<property name="schemas">shopping1</property>
+		
+		<!-- 表级 DML 权限设置 -->
+		<!-- 		
+		<privileges check="false">
+			<schema name="TESTDB" dml="0110" >
+				<table name="tb01" dml="0000"></table>
+				<table name="tb02" dml="1111"></table>
+			</schema>
+		</privileges>		
+		 -->
+	</user>
+
+	<user name="user">
+		<property name="password">user</property>
+		<property name="schemas">shopping1</property>
+		<property name="readOnly">true</property>
+	</user>
+```
+
+
+
+**导入表结构，测试SQL**
+
+跨库查询--报错
+
+```mysql
+select * from  tb_user u left join tb_order_item tb on u.id = tb.id;
+```
+
+```mysql
+#错误信息 不能跨库查询
+ERROR 1064 (HY000): invalid route in sql, multi tables found but datanode has no intersection  sql:select * from  tb_user u left join tb_order_item tb on u.id = tb.id
+```
+
+有一些公共的表，每个库都需要使用的，可以使用全局表配置。
+
+修改scheme配置
+
+```xml
+    <!--把全局表分到多个节点去，需要删除重新导入-->
+    <table name="tb_user_address" dataNode="dn1,dn2,dn3" primaryKey="id" type = "global" />
+		<table name="tb_areas_provinces" dataNode="dn1,dn2,dn3" primaryKey="id" type = "global" />
+		<table name="tb_areas_city" dataNode="dn1,dn2,dn3" primaryKey="id" type = "global"/>
+```
+
+然后在多表查询不报错，**讲真，有点不方便；**
+
+
+
+
+
+##### 水平拆分
+
+在业务系统中, 有一张表(日志表), 业务系统每天都会产生大量的日志数据 , 单台服务器的数据存 储及处理能力是有限的, 可以对数据库表进行拆分。
+
+![image-20220327202238800](https://tva1.sinaimg.cn/large/e6c9d24egy1h0opkcx5yuj20qk0ab74r.jpg)
+
+ **schema.xml配置**
+
+```xml
+<schema name="logs" checkSQLschema="true" sqlMaxLimit="100">
+		<table name="tb_logs" dataNode="dn4,dn5,dn6" primaryKey="id" rule="mod-long" />
+</schema>
+
+	<dataNode name="dn4" dataHost="dhost1" database="logs" />
+	<dataNode name="dn5" dataHost="dhost2" database="logs" />
+	<dataNode name="dn6" dataHost="dhost3" database="logs" />
+```
+
+**server配置**
+
+```xml
+<user name="root" defaultAccount="true">
+		<property name="password">12345678</property>
+		<property name="schemas">shopping1,logs</property>
+	</user>
+```
+
+然后倒入数据表结构和数据，查询分片情况。分片规则是按模计算。
+
+
+
+##### 分片规则
+
+
+
+**范围**
+
+根据指定的字段及其配置的范围与数据节点的对应情况， 来决定该数据属于哪一个分片。
+
+**针对数字类型的适用**
+
+```xml
+<!--schema.xml配置-->
+<table name="TB_ORDER" dataNode="dn1,dn2,dn3" rule="auto-sharding-long" />
+
+
+<!--范围-->
+<tableRule name="auto-sharding-long">
+    <rule>
+        <columns>id</columns>
+        <algorithm>rang-long</algorithm>
+    </rule>
+</tableRule>
+
+<function name="rang-long" class="io.mycat.route.function.AutoPartitionByLong">
+    <property name="mapFile">autopartition-long.txt</property>
+    <property name="defaultNode">0</property>
+</function>
+
+```
+
+
+
+ **取模**
+
+根据指定的字段值与节点数量进行求模运算，根据运算结果， 来决定该数据属于哪一个分片。
+
+**针对数字类型的适用**
+
+```xml
+<!--schema.xml配置-->
+<table name="TB_ORDER" dataNode="dn1,dn2,dn3" rule="mod-long" />
+
+
+<!--取模-->
+<tableRule name="mod-long">
+    <rule>
+        <columns>id</columns>
+        <algorithm>mod-long</algorithm>
+    </rule>
+</tableRule>
+<function name="mod-long" class="io.mycat.route.function.PartitionByMod">
+    <property name="count">3</property>
+</function>
+
+```
+
+![image-20220327220842387](https://tva1.sinaimg.cn/large/e6c9d24egy1h0osmo9fgnj20oy0bj400.jpg)
+
+
+
+**一致性hash分片**
+
+所谓一致性哈希，相同的哈希因子计算值总是被划分到相同的分区表中，不会因为分区节点的增加而改变原来数据的分区位置，有效的解决了分布式数据的拓容问题。
+
+**适用于字符类型**
+
+```xml
+<!-- schema.xml 一致性hash -->
+<table name="tb_order" dataNode="dn4,dn5,dn6" rule="sharding-by-murmur" />
+
+<!-- rule.xml -->
+<tableRule name="sharding-by-murmur">
+    <rule>
+        <columns>id</columns>
+        <algorithm>murmur</algorithm>
+    </rule>
+</tableRule>
+<function name="murmur" class="io.mycat.route.function.PartitionByMurmurHash"> <property name="seed">0</property><!-- 默认是0 -->
+<property name="count">3</property>
+<property name="virtualBucketTimes">160</property>
+</function>
+```
+
+***必须要修改rule里面的节点配置 否则没办法分片***
+
+<!-- 一致性hash -->
+
+![image-20220327221617061](https://tva1.sinaimg.cn/large/e6c9d24egy1h0osujx72lj20p40cy770.jpg)
+
+
+
+**枚举**
+
+通过在配置文件中配置可能的枚举值，指定数据分布到不用数据节点上，本规则也用于按照省份、性别、状态拆分数据等业务
+
+![image-20220331222550443](https://tva1.sinaimg.cn/large/e6c9d24egy1h0tflsgezcj20ut0dhdiu.jpg)
+
+function中可设置默认节点，防止值不在配置的枚举中，导致报错的问题
+
+
+
+**应用指定**
+
+运行阶段由应用自主决定路由到那个分片，直接根据字符子串**（必须是数字）**计算分片号。
+
+![image-20220331223317485](https://tva1.sinaimg.cn/large/e6c9d24egy1h0tfth4i79j20r70d9ju3.jpg)
+
+
+
+分片规则-**固定分片hash算法**
+
+该算法类似于十进制的求模运算，但是为二进制的操作，例如，取id的**二进制低10位**与1111111111进行位&运算，结果是肯定在0-1023之间。**字段必须是为数字类型。**
+
+特点：
+
+1. 如果是求模，连续的值，分别分配到各个不同的分片上；但是此算法会将连续的值可能分配到相同的分片，降低事务处理的难度
+2. 可以均与分配，也可以非均与分配
+3. 分配字段必须为数字类型
+
+ ![image-20220403204925345](https://tva1.sinaimg.cn/large/e6c9d24egy1h0wtodoh3lj20v90cxtbn.jpg)
+
+
+
+
+
+分片规则-**字符串hash算法**
+
+**截取字符串中的指定位置**的子字符串，进行hash算法，算出分片。
+
+hash(字段值：start:end) & (1024-1)
+
+![image-20220403210247784](https://tva1.sinaimg.cn/large/e6c9d24egy1h0wu28ci07j20tf0co0vo.jpg)
+
+
+
+分片规则-**按天日期分片**
+
+如果设置了截止时间和结束了时间，如果超过了结束时间，那么会重复开始分片插入
+
+![image-20220403211400142](https://tva1.sinaimg.cn/large/e6c9d24egy1h0wudwdnt0j20sv0ctq5q.jpg)
+
+
+
+分片规则-**按自然月分片**
+
+使用场景为按照月份来分片，每个自然月为一个分片。如果三个库，按照自然月，如果超过了，会从头开始计算。
+
+![image-20220403212445263](https://tva1.sinaimg.cn/large/e6c9d24egy1h0wup36zzkj20pu0cswh4.jpg)
+
+**配置表的dataNode的分片，必须和分片规则数量一致，例如2022-01-01到2022-12-31，一共需要12个分片。**
+
+
 
 
 
 #### Mycat管理及监控
 
-
-
-
-
-
-
-
-
-
-
-
+![image-20220403214226776](https://tva1.sinaimg.cn/large/e6c9d24egy1h0wv7hwju1j20v60bbta8.jpg)
 
 
 
 ### 读写分离
+
+简单的说是把对数据库的读和写操作分开，以对应不同的数据库服务器。主数据库提供写操作，从数据库进行读操作，这样能有效地减轻单台数据库的压力。
+
+![image-20220404103840950](https://tva1.sinaimg.cn/large/e6c9d24egy1h0xhn5uhjmj20on09bglx.jpg)
+
+#### 一主一从
+
+mysql的主从复制，是基于二进制日志(binlog)实现的。
+
+![image-20220404104339209](https://tva1.sinaimg.cn/large/e6c9d24egy1h0xhsbwsy8j20py0b6gmf.jpg)
+
+
+
+
+
+#### 一主一从读写分离
+
+Mycat控制后台数据库的读写分离和负载均衡由schema.xml文件datahost标签的balance属性控制。
+
+![image-20220404104743628](https://tva1.sinaimg.cn/large/e6c9d24egy1h0xhwkj6rdj20uf0b7773.jpg)
+
+**负载均衡配置**
+
+![image-20220404111520748](https://tva1.sinaimg.cn/large/e6c9d24egy1h0xipbj6q9j20ud0bwmzb.jpg)
+
+一主一从，主节点Master宕机之后，业务系统救只能够读，而不能写入数据了。
+
+
+
+#### 双主双从
+
+**一个主机Master1用于处理所有写请求，它的从机Slave1和另一台主机Master2还有它的从机Slave2负责所有读请求。**
+
+![image-20220404113218617](https://tva1.sinaimg.cn/large/e6c9d24egy1h0xj6yktkdj20p809zdgh.jpg)
+
+**配置**
+
+**Master**修改配置文件 /etc/my.cnf
+
+**应外一个master 设置不同的serverId**
+
+```mysql
+#mysql服务ID，保证整个集群环境中唯一，取值范围：1-2^32 -1. 默认为1
+server-id = 1
+#是否只读，1代表只读，0代表读写
+read-only=0
+#忽略的数据，指不需要同步的数据库
+#binlog-ignore-db=mysql
+#指定同步的数据库
+binlog-do-db=db01
+binlog-do-db=db02
+binlog-do-db=db03
+# 在作为从数据库的时候，有写入操作也要更新二进制日志文件
+log-slave-updates
+```
+
+重启MYSQL服务器
+
+```mysql
+systemctl restart mysqld
+```
+
+登陆mysql，创建远程连接的账号，并授予主从复制的权限
+
+```mysql
+#创建test用户，并设置密码，该用户可在任意主机连接该MYSQL服务
+CREATE USER 'test'@'%' IDENTIFIED WITH mysql_sql_native_password BY 'Jack@12345678';
+# 为test用户分配主从复制权限
+GRANT REPLICATION SLAVE ON *.* TO 'test'@'%'
+```
+
+**从机设置固定主机地址IP、账号密码、对应binlog日志名称，以及对应的position**
+
+**配置schema.xml**
+
+![image-20220404151044743](https://tva1.sinaimg.cn/large/e6c9d24egy1h0xpiagx5uj20ue0ao782.jpg)
+
+负载均衡配置：
+![image-20220404151249941](https://tva1.sinaimg.cn/large/e6c9d24egy1h0xpkgfxi6j20up0d3dj7.jpg)
+
+
+
+**Attention⚠️**
+
+如果M1挂了，那么M2会自动顶替上来；如果此时插入了数据到M2中，那么会自动同步到S2中，但是查询到时候会负载查询到S1，**S1的数据没有同步，数据就会不一致**。
 
 
 
