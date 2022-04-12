@@ -845,8 +845,6 @@ set session  transaction isolation level serializable ;
 
  存储引擎就是存储数据、建立索引、更新/查询数据等技术等实现方式，**存储引擎是基于表的**，而不是基于库的，所以存储引擎也可以被称为表类型。
 
-
-
 ```mysql
 -- 默认存储引擎是InnoDB
 -- 查询所有的支持的存储引擎
@@ -854,7 +852,19 @@ set session  transaction isolation level serializable ;
 -- 指定引擎是在创建表中创建
 ```
 
-![image-20220227155718647](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs4jmxmihj21us0dwq6k.jpg)
+| Engine              | Support | Comment                                                      | Transactions | XA   | Savepoints |
+| :------------------ | :------ | :----------------------------------------------------------- | :----------- | :--- | :--------- |
+| **InnoDB**          | DEFAULT | Supports transactions, row-level locking, and foreign keys   | YES          | YES  | YES        |
+| MRG\_MYISAM         | YES     | Collection of identical MyISAM tables                        | NO           | NO   | NO         |
+| MEMORY              | YES     | Hash based, stored in memory, useful for temporary tables    | NO           | NO   | NO         |
+| BLACKHOLE           | YES     | /dev/null storage engine \(anything you write to it disappears\) | NO           | NO   | NO         |
+| MyISAM              | YES     | MyISAM storage engine                                        | NO           | NO   | NO         |
+| CSV                 | YES     | CSV storage engine                                           | NO           | NO   | NO         |
+| ARCHIVE             | YES     | Archive storage engine                                       | NO           | NO   | NO         |
+| PERFORMANCE\_SCHEMA | YES     | Performance Schema                                           | NO           | NO   | NO         |
+| FEDERATED           | NO      | Federated MySQL storage engine                               | NULL         | NULL | NULL       |
+
+
 
 
 
@@ -880,7 +890,9 @@ xxx.ibd：代表是的是表名，innoDB引擎的每张表都会对应这样一�
 show variables like '%innodb_file_per_table%';
 ```
 
-![image-20220227161255522](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs4zvmb3lj20k602wjrf.jpg)
+| Variable\_name           | Value |
+| :----------------------- | :---- |
+| innodb\_file\_per\_table | ON    |
 
 
 
@@ -1210,7 +1222,7 @@ n*8 + (n+1) *6 =16 * 1024，计算n约等于1170，
 
 1171 * 1171*16=21939856
 
-
+---
 
 
 
@@ -1263,9 +1275,20 @@ drop index index_name ON table_name;
 show global status like 'Com_______';
 ```
 
-查询的次数
+**CRUD 查询的次数**
 
-![image-20220227224430218](https://tva1.sinaimg.cn/large/e6c9d24egy1gzsgbbsu9hj20sg0ho0tu.jpg)
+| Variable\_name | Value     |
+| :------------- | :-------- |
+| Com\_binlog    | 0         |
+| Com\_commit    | 5726128   |
+| Com\_delete    | 423666    |
+| Com\_insert    | 40890232  |
+| Com\_repair    | 0         |
+| Com\_revoke    | 0         |
+| Com\_select    | 110377358 |
+| Com\_signal    | 0         |
+| Com\_update    | 3358246   |
+| Com\_xa\_end   | 0         |
 
 
 
@@ -1343,27 +1366,33 @@ desc select * from table_user;
 
 
 
-Explain截图
+**Explain截图**
 
-![image-20220301225144982](https://tva1.sinaimg.cn/large/e6c9d24egy1gzurrgz360j21zc07iabk.jpg)
+| id   | select\_type | table               | partitions | type | possible\_keys           | key                      | key\_len | ref               | rows  | filtered | Extra                           |
+| :--- | :----------- | :------------------ | :--------- | :--- | :----------------------- | :----------------------- | :------- | :---------------- | :---- | :------- | :------------------------------ |
+| 1    | PRIMARY      | &lt;derived2&gt;    | NULL       | ALL  | NULL                     | NULL                     | NULL     | NULL              | 7281  | 100      | NULL                            |
+| 1    | PRIMARY      | web\_ply\_base      | NULL       | ref  | idx\_plybase\_plyno      | idx\_plybase\_plyno      | 203      | base01.c\_ply\_no | 1     | 100      | Using index                     |
+| 2    | DERIVED      | &lt;derived3&gt;    | NULL       | ALL  | NULL                     | NULL                     | NULL     | NULL              | 7281  | 100      | Using temporary; Using filesort |
+| 3    | DERIVED      | web\_ply\_applicant | NULL       | ref  | idx\_ply\_certf\_cde     | idx\_ply\_certf\_cde     | 83       | const             | 39    | 100      | NULL                            |
+| 4    | UNION        | web\_ply\_insured   | NULL       | ref  | idx\_ply\_insured\_certf | idx\_ply\_insured\_certf | 83       | const             | 39    | 100      | NULL                            |
+| 5    | UNION        | web\_ply\_bnfc      | NULL       | ALL  | NULL                     | NULL                     | NULL     | NULL              | 72038 | 10       | Using where                     |
+| NULL | UNION RESULT | &lt;union3,4,5&gt;  | NULL       | ALL  | NULL                     | NULL                     | NULL     | NULL              | NULL  | NULL     | Using temporary                 |
 
-**id**：select查询的序列号，表示查询中执行的select子句或者是操作表的顺序（**id相同，执行顺序从上到下，id不同，值越大，越先执行**）
 
-**select_type**: 表示select的类型，常见的取值有SIMPLE（简单表，不用表连接或者子查询）、PRIMARY（主查询，即外层的查询）、UNION（UNION中的第二个或者后面的查询语句）、SUBQUERY（SELECT/WHERE之后包含了子查询）等
 
-**type**: 表示连接类型，性能由好到差的连接类型为NULL、SYSTEM、const(主键 唯一索引)、eq_ref、ref（非唯一索引）、range、index、all
+**各字段定义：**
 
-**possible_key**: 显示可能应用在这张表上的索引，一个或多个
-
-**key**: 显示使用的索引
-
-**Key_len**: 表示索引中使用到字节数，该值为索引字段最大可能长度，并非实际使用长度，在不损失精度到前提下，长度越短越好
-
-**rows**: MYSQL 认为要执行查询到行树，在innoDB引擎中，是一个估计值，可能并不总是准确
-
-**filtered**: 表示返回结果的行数占需要读取行数到百分比，值越大越好
-
-**Extra**: 额外展示的信息
+|       字段       | 含义                                                         |
+| :--------------: | :----------------------------------------------------------- |
+|      **id**      | select查询的序列号，表示查询中执行的select子句或者是操作表的顺序（**id相同，执行顺序从上到下，id不同，值越大，越先执行**） |
+| **select_type**  | 表示select的类型，常见的取值有SIMPLE（简单表，不用表连接或者子查询）、PRIMARY（主查询，即外层的查询）、UNION（UNION中的第二个或者后面的查询语句）、SUBQUERY（SELECT/WHERE之后包含了子查询）等 |
+|     **type**     | 表示连接类型，性能由好到差的连接类型为NULL、SYSTEM、const(主键 唯一索引)、eq_ref、ref（非唯一索引）、range、index、all |
+| **possible_key** | 显示可能应用在这张表上的索引，一个或多个                     |
+|     **key**      | 显示使用的索引                                               |
+|   **Key_len**    | 表示索引中使用到字节数，该值为索引字段最大可能长度，并非实际使用长度，在不损失精度到前提下，长度越短越好 |
+|     **rows**     | MYSQL 认为要执行查询到行树，在innoDB引擎中，是一个估计值，可能并不总是准确 |
+|   **filtered**   | 表示返回结果的行数占需要读取行数到百分比，值越大越好         |
+|    **Extra**     | 额外展示的信息                                               |
 
 
 
@@ -1372,12 +1401,13 @@ Explain截图
 
 ###### 最左前缀法则
 
-如果索引了（联合索引），要遵守最左前缀法则。最左前缀法则指的是查询从索引的最左列开始，并且不跳过索引中的列。
+如果索引了（联合索引），要遵守**最左前缀法则**。最左前缀法则指的是查询从索引的最左列开始，并且不跳过索引中的列。
 如果跳跃某一列索引将部分失效（后面的字段索引失效）。
-聚合索引中最左边的索引必须存在即可，只要最左边的索引出现了，就会走索引。与位置无关
+**聚合索引中最左边的索引必须存在即可，只要最左边的索引出现了，就会走索引。与位置无关**
+
 ###### 范围查询
 
-聚合索引中，出现范围查询（<,>），范围查询右侧的列索引失效
+ 聚合索引中，出现范围查询（<,>），范围查询右侧的列索引失效
 
 ```mysql
 -- 三个字段是聚合索引，但是 status索引失效
@@ -1488,20 +1518,20 @@ force index()
 
 
 
-![image-20220304220601649](https://tva1.sinaimg.cn/large/e6c9d24egy1gzy7auqkbfj20xu06cmxm.jpg)
+| id   | select\_type | table         | partitions | type  | possible\_keys | key         | key\_len | ref  | rows | filtered | Extra                    |
+| :--- | :----------- | :------------ | :--------- | :---- | :------------- | :---------- | :------- | :--- | :--- | :------- | :----------------------- |
+| 1    | SIMPLE       | test\_varchar | NULL       | index | name\_index    | name\_index | 403      | NULL | 2    | 100      | Using where; Using index |
 
 
 
 **Tips，当extra内容是：**
 
-- Using where; Using index的时候，使用了索引，但是需要的数据都在索引列中能找到，所以不需要回表查询数据
-- Using index condition：使用了索引，但是需要回表查询数据
+- **Using where; Using index**的时候，使用了索引，但是需要的数据都在索引列中能找到，所以不需要回表查询数据
+- **Using index condition**：使用了索引，但是需要回表查询数据
 
 图示如下：
 
 ![image-20220304221050182](https://tva1.sinaimg.cn/large/e6c9d24egy1gzy7fts8qjj20uq0d9dhv.jpg)
-
-
 
 
 
@@ -1510,8 +1540,6 @@ force index()
 当字段类型为字符串(varchar,text等)时，有时候需要索引很长的字符串，这会让索引变得很大，查询时，浪费了大量的磁盘IO，影响查询效率。
 
 此时可以只将字符串的一部分前缀，建立索引，这样可以大大节约索引空间，从而提高索引效率。
-
-
 
 ```mysql
 -- 语法
