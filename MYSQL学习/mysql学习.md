@@ -4,8 +4,6 @@
 
 
 
-
-
 # 一、基础学习
 
 ## 1、通用语法及分类
@@ -1730,9 +1728,9 @@ merge_threshold：合并页的阀值，可以自己设置，在创建表或者�
 
 ##### order by优化
 
-Using filesort：通过表的索引或全表扫描，读取满足条件的数据行，然后**在排序缓冲区sort buffer中完成排序操作**，所有不是通过索引直接返回排序结果的排序都叫FileSort排序。
+Using filesort：通过表的索引或全表扫描，读取满足条件的数据行，然后**在排序缓冲区sort buffer中完成排序操作**，所有不是通过索引直接返回排序结果的排序都叫**FileSort排序**。
 
-Using index：通过有序索引顺序扫描直接返回有序数据，这种情况即为using index，不需要额外排序，操作效率高。
+**Using index**：通过有序索引顺序扫描直接返回有序数据，这种情况即为using index，不需要额外排序，操作效率高。
 
 ```mysql
 -- 创建索引，一个倒序，一个顺序排
@@ -1769,7 +1767,7 @@ select id ,name,age,phone from table_user order by age ,phone;
 
 多字段排序时候，一个升序一个降序，需要注意联合索引在创建时多规则（ASC/DESC）
 
-如果不可避免的出现filesort，大数据量排序时，可以适当增加排序缓冲区大小 sort_buffer_size（默认256K）
+如果不可避免的出现filesort，大数据量排序时，可以适当增加排序缓冲区大小 **sort_buffer_size（默认256K）**
 
 ```mysql
 -- 查询排序缓冲区大小
@@ -1821,19 +1819,19 @@ InnoDB引擎就麻烦了，他执行count(*) 的时候，需要把数据一行�
 
 ###### count用法
 
-count()是一个聚合函数，对于返回的结果集，一行行的判断，如果count函数的参数不是NULL，累计值就加1，否则不加，最后返回累计值。
+count()是一个聚合函数，对于返回的结果集，一行行的判断，如果count函数的参数**不是NULL**，累计值就加1，否则不加，最后返回累计值。
 
 **Count(*)**
 
-InnoDB引擎并不会把全部字段取出来，而是专门做了优化，不取值，服务层直接按行累加。
+InnoDB引擎**并不会把全部字段取出来**，而是专门做了优化，不取值，服务层直接按行累加。
 
 **Count(主键)**
 
-InnoDB引擎会遍历整张表，把每一行的 主键id 值都取出来，返回给服务层。服务层拿到之后，直接按行进行累加（主键不可能为null）
+InnoDB引擎会遍历整张表，把每一行的 主键id 值都取出来，返回给服务层。服务层拿到之后，直接按行进行累加**（主键不可能为null）**
 
 **Count(字段)**
 
-如果没有not null 约束：InnoDB引擎会遍历整张表把每一个行的字段值都取出来，返回给服务层，服务层判断是否为null，不为null，计数累加。只会累积行数中这个字段不为NULL的行数
+如果没有not null 约束：InnoDB引擎会遍历整张表把每一个行的字段值都取出来，返回给服务层，服务层判断是否为null，不为null，计数累加。只会累积行数中这个字段**不为NULL**的行数
 
 有not null约束：InnoDB引擎会遍历整张表把每一个行的字段值都取出来，返回给服务层。直接按行累加。
 
@@ -2325,7 +2323,7 @@ select * from new_test_user;
 
 ###### 条件处理程序
 
-条件处理程序（handler）可以用来定义在流程控制结构执行过程中遇到问题时相应的处理步骤。具体语法：
+条件处理程序（**handler**）可以用来定义在流程控制结构执行过程中遇到问题时相应的处理步骤。具体语法：
 
 ```mysql
 DECLARE handler_action. HANDLER FOR condition_value [,condition_value] ... statement;
@@ -2338,8 +2336,6 @@ condition_value
 	SQLWARNING: 所有以01开头的SQLSTATE代码的简写
 	NOT FOUND: 所有以02开头的SQLSTATE代码的简写
 	SQLEXCEPTION: 所有没有被SQLWARNING或NOT FOUND捕获的SQLSTATE代码的简写
-
-
 ```
 
 
@@ -2355,9 +2351,7 @@ BEGIN
 	SQL
 	RETURN ...;
 END;
-
 characteristic说明:
-
 DETERMINSTIC:相同的输入参数总是产生相同的结果
 NO SQL:不包含SQL语句
 READS SQL DATA:包含读取数据的语句，但不包含写入数据的语句
@@ -2396,8 +2390,6 @@ select testFun1(100);
 使用别名**OLD和NEW**来**引用触发器中**发生变化的记录内容，这与其他的数据库是相似的。现在触发器还**只支持行级触发**，不支持语句级触发。
 
 ![image-20220312212407784](https://tva1.sinaimg.cn/large/e6c9d24egy1h07f1otmraj20jb05qdga.jpg)
-
-
 
 ###### 语法
 
@@ -2471,7 +2463,7 @@ MYSQL中的锁，按照锁的粒度分，分为以下三类：
 
 其典型的使用场景是做全库的逻辑备份，对所有的表进行锁定，从而获取一致性视图，保证数据的完整性。
 
- 语法
+语法
 
 ```mysql
 -- 备份操作
@@ -2481,21 +2473,15 @@ flush tables with read lock;
 mysqldump -uroot -p1234 test>test.sql
 -- 解锁
 unlock tables;
-
-
 ```
-
-
 
 ###### 特点
 
 数据库中加全局锁，是一个比较重的操作，存在以下问题：
 
-1. 如果在主库上备份，那么在备份期间都不能执行DML、DDL语句，业务几本书就得停摆
+1. 如果在主库上备份，那么在备份期间都不能执行DML、DDL语句，业务基本上就得停摆
 
 2. 如果在从库上备份，那么在备份期间，从苦不能执行主库同步过来的二进制文件（binlog），会导致主从延迟
-
-
 
 在InnoDB引擎中，我们可以在备份时加上参数**--single-transaction**参数来完成不加锁的一致性数据备份。
 
@@ -2525,8 +2511,6 @@ mysqldump --single-transaction  -uroot -p1234 test>test.sql
 
 2. **表读占写锁（write lock）---其他的不能读，不能写**
 
-
-
 语法
 
 1. **加锁：lock tables table_name.... read/write**
@@ -2539,7 +2523,7 @@ mysqldump --single-transaction  -uroot -p1234 test>test.sql
 
 MDL加锁过程是系统自动控制，无需显式使用，在访问一张表的时候会自动加上。MDL锁主要作用是维护表元数据的一致性，在表上有活动事务的时候，不可以对元数据进行写入操作。**为了避免DML和DDL冲突，保证读写的正确性。**
 
-在MYSQL5.5中引入了MDL，当对一张进行CRUD的时候，加MDL读锁（共享）；当对表结构进行变更操作的时候，加MDL写锁（排他）。
+在MYSQL5.5中引入了MDL，当对一张进行CRUD的时候，**加MDL读锁（共享）**；当对表结构进行变更操作的时候，**加MDL写锁（排他）**。
 
 ![image-20220313142607270](https://tva1.sinaimg.cn/large/e6c9d24egy1h088l10dgsj20tz05374y.jpg)
 
@@ -2585,7 +2569,7 @@ unlock tables ;
 
 
 
-**意向排他锁（IX）演示：
+**意向排他锁（IX）演示：**
 
 ```mysql
 -- console1 加事务，进行更新，并使用行锁
@@ -2610,11 +2594,11 @@ unlock tables ;
 
 行级锁，每次操作锁住对应的行数据。锁定粒度最小，发生锁冲突的概率最低，并发度最高。应用在InnoDB存储引擎中。
 
-InnoDB的数据是基于索引组织的，行锁是通过对索引上的索引项加锁来实现的，而不是对记录加的锁。对于行级锁，主要分为以下三类：
+InnoDB的数据是基于索引组织的，**行锁是通过对索引上的索引项加锁来实现的**，而不是对记录加的锁。对于行级锁，主要分为以下三类：
 
 **1、行锁（record Lock）：锁定单个行记录的锁，防止其他事物对此进行update和delete操作。在RC、RR隔离级别下都支持。**
 
-**2、间隙锁（gap Lock）：锁定索引记录间隔（不含该记录），确保索引记录间隔不变，防止其他事物在这个间隙进行insert，产生幻读。在RR隔离级别下都支持。**
+**2、间隙锁（gap Lock）：锁定索引记录间隔(不含该记录)，确保索引记录间隔不变，防止其他事物在这个间隙进行insert，产生幻读。在RR隔离级别下都支持。**
 
 **3、临键锁（Next-Key Lock）：行锁和间隙锁组合，同时锁住数据，并锁住数据前面的间隙Gap。在RR隔离级别下支持。**
 
@@ -2650,7 +2634,6 @@ update table_user set  age  =109 where  name = 'JackOX';
 -- console 2 开启事务，更新id来更新,但是阻塞住了，行锁已经升级为表锁---console1的name没有索引
 begin ;
 update table_user set  age  =109 where  id  = 1;
-
 ```
 
 
@@ -2670,8 +2653,6 @@ update table_user set  age  =109 where  id  = 1;
 **注意⚠️：**
 
 ***间隙锁唯一目的是防止其他事务插入间隙。间隙锁可以共存，一个事务采用的间隙锁不会阻止另一个事务在同一间隙上采用间隙锁。***
-
-
 
 **情况1演示：**
 
@@ -2747,8 +2728,6 @@ TODO 待看
 
 ### 7、Mysql管理
 
-
-
 ##### 系统数据库
 
 MYSQL数据库安装完成后，自带了四个数据库，具体作用如下：
@@ -2763,8 +2742,6 @@ MYSQL数据库安装完成后，自带了四个数据库，具体作用如下：
 
 
 ##### 常用工具
-
-
 
 ###### mysql
 
@@ -2791,8 +2768,6 @@ mysql -uroot -p123456 db01 -e "select * from user";
 
 
 
-
-
 ###### mysqladmin
 
 是一个执行管理操作的客户端程序。可以用它来检查服务器的配置和当前状态、创建并删除数据库等。
@@ -2801,8 +2776,6 @@ mysql -uroot -p123456 db01 -e "select * from user";
 mysqladmin --help
 
 mysqladmin -uroot -p12345678 version;
-
-
 ```
 
 
@@ -2821,9 +2794,6 @@ option：
 -s,--short-form															#显示简单格式，省略到一些信息
 --start-datatime=date1 --stop-datetime=date2   #指定日期间隔内的所有日志
 --start-position=pos1  --stop-position=pos2			#指定位置间隔内的所有日志
-
-
-
 ```
 
 
@@ -2849,7 +2819,6 @@ example:
 	
 	#查询test库中book表的详细情况
 	mysqlshow -uroot -p1234 test book --count
-  
 ```
 
 
@@ -2881,8 +2850,6 @@ mysqlimport是客户端数据导入工具，用来导入mysqldump 加 -T 参数�
 ## 三、运维篇章
 
 ### 日志
-
-
 
 #### 错误日志
 
