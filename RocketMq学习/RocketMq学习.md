@@ -566,11 +566,58 @@ mappedFile文件内容由一个个的消息单元构成。每个消息单元中�
 
 
 
+**消息写入**
+
+一条消息进入到Broker后经历了以下几个过程才最终被持久化。
+
+* Broker根据queueId，获取到该消息对应索引条目要在consumequeue目录中的写入偏移量，即Queueoffset
+* 将queueId、queueOffset等数据，与消息一起封装为消息单元
+* 将消息单元写入到commitlog
+* 同时形成消息索引条目
+* 将消息索引条目分发到相应的consumequeue
 
 
 
+**消息拉取**
 
+* 当Consumer来拉取消息时会经历以下几个步骤：
 
+  * Consumer获取到其要消费消息所在Queue的**消费偏移量offset**，计算出其要消费消息的**消息offset**
+
+    >消费offset即消费进度，consumer对其某个Queue的消费offset，即消费到了该Queue的第几条消息
+    >
+    >消息offset = 消息offset +  1
+
+  * Consumer向Broker发送拉取请求，其中会包含要拉取消息的Queue、消息Offset及消息Tag
+
+  * Broker计算在该consumequeue中的queueOffset
+
+    >queueOffset = 消息iffset * 20字节
+
+  * 从该queueOffset处开始向后查找第一个指定Tag的索引条目
+
+  * 解析该索引条目的前8个字节，即可以定位到该消息在commitlog中的commitlog offset
+
+  * 从对应commitlog offset中读取消息单元，并发送给Consumer
+
+    
+
+**性能提升**
+
+RocketMq中，无论是消息本身还是消息索引，都是存储在磁盘上的，其不会影响消息的消费吗？当然不会，其实RockerMq的性能在目前的MQ产品中性能是非常高的。因为系统通过一系列相关机制大大提升了性能。
+
+首先，RocketMQ对文件的读写操作是通过**mmap零拷贝**进行的，将其对文件的操作转化为直接对内存地址进行操作，从而极大地提高了文件的读写效率。
+
+其次，consumequeue中的数据顺序存放的，还引入了PageCache的预读取机制，使得对consumequeue文件的读取几乎接近内存读取，即时在有消息堆积情况下也不会影响性能。
+
+>PageCache机制，页缓存机制，是OS对文件的缓存机制，用于加速对文件的读写操作。一般来说，程序对文件进行顺序读写的速度几乎接近于内存读写速度，主要原因是由于OS使用PageCache机制对读写访问操作进行性能优化，将一部分的内存用做PageCache。
+>
+>* 写操作：OS会将数据写入到PageCache中，随后会以异步方式由pdflush （page dirty flush） 内核线程将Cache中的数据刷盘到物理磁盘
+>* 读操作：若用户要读取数据，其首先会从PageCache中读取，若没有命中，则OS在物理磁盘上加载该数据到PageCache的同时，也会顺序对其相邻数据块中的数据进行预读取。
+
+RockerMQ中可能会影响性能的是对commitlog文件的读取。因为对commitlog文件来说，读取消息时会产生大量的随机访问，而随机访问会严重影响性能。不过，如果选择合适的系统IO调度算法，比如设置调度算法为Deadline（采用SSD固态硬盘的话），随机读取性能也会有所提升。
+
+# TODO：P48
 
 
 
@@ -633,6 +680,511 @@ mappedFile文件内容由一个个的消息单元构成。每个消息单元中�
 
 
 ## RocketMQ应用
+
+### 一、普通消息
+
+#### 消息发送分类
+
+Producer对于消息的发送方式也有多种选择，不同的方式会产生不同的系统效果。
+
+
+
+##### 同步发送消息
+
+同步发送消息是指，Producer发出一条消息后，会在收到MQ返回的ACK之后才发下一条消息。该方式的消息可靠性最高，但消息的发送效率太低。
+
+![image-20220504210654073](https://tva1.sinaimg.cn/large/e6c9d24egy1h1woe1vludj20es0ah74l.jpg)
+
+##### 异步发送消息
+
+异步发送消息是指，Producer发出消息后无需等待MQ返回ACK，直接发送下一条消息。该方式的消息可靠性得到保障，消息发送效率也可以。
+
+![image-20220504210813284](https://tva1.sinaimg.cn/large/e6c9d24egy1h1wofg41gcj20gf0bhdg9.jpg)
+
+
+
+##### 单向发送消息
+
+单向发送消息是指，Prodcuer仅负责发送消息，不等待、不处理MQ的ACK，该发送方式时MQ也不返回ACK。该方式的消息发送效率最高，但是消息可靠性差。
+
+![image-20220504210920264](https://tva1.sinaimg.cn/large/e6c9d24egy1h1wogladqnj20gv0c1mxe.jpg)
+
+
+
+### 二、顺序消息
+
+#### 什么是顺序消费
+
+消息有序指的是可以**按照消息的发送顺序来消费(FIFO)**。RocketMQ可以严格的保证消息有序，可以分为分区有序或者全局有序。
+
+顺序消费的原理解析，在默认的情况下消息发送会采取**Round Robin轮询方式**把消息发送到不同的queue(分区队列)；而消费消息的时候从多个queue上拉取消息，这种情况发送和消费是不能保证顺序。但是如果控制发送的顺序消息只依次发送到同一个queue中，消费的时候只从这个queue上依次拉取，则就保证了顺序。当发送和消费参与的queue只有一个，则是全局有序；如果多个queue参与，则为分区有序，即相对每个queue，消息都是有序的。
+
+
+
+#### 为什么需要顺序消费
+
+下面用订单进行分区有序的示例。一个订单的顺序流程是：创建、付款、推送、完成。订单号相同的消息会被先后发送到同一个队列中，消费时，同一个**OrderId**获取到的肯定是同一个队列。
+
+![image-20220522115606894](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h1mnu6xdj20mq09rwf9.jpg)
+
+  
+
+
+
+#### 有序性分类
+
+根据有序范围的不同，RocketMQ可以严格地保证两种消息的有序性：分区有序与全局有序
+
+##### 全局有序
+
+当发送和消费参与的Queue只有一个时所保证的有序是整个Topic中消息的顺序，称为**全局有序。**
+
+>在创建Topic时指定Queue的数量，有三种指定方式：
+>
+>1) 在代码中创建Producer时，可以指定自动创建的Topic的Queue数量
+>2) 在RocketMQ可视化控制台中手动创建Topic时，指定Queue数量
+>3) 使用mqAdmin命令手动创建Topic时指定Queue数量
+
+![image-20220522115955379](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h1qif2h2j20jn07fmx9.jpg)
+
+##### 分区有序
+
+如果有多个Queue参与，其仅可以保证在该Queue分区队列上的消息顺序，则称为分区有序。
+
+>如何实现Queue的选择，在定义Producer时我们可以指定消息队列选择器，而这个选择器是我们自己实现了MessageQueueSelector接口定义的。
+>
+>在定义选择器的选择算法时，一般需要使用选择key。这个选择key可以是消息key也可以是其他数据。但无论谁做选择key，都不能重复，都是唯一的。
+>
+>一般性的选择算法是，让选择key（获其hash值）与该Topic所包含的Queue的数量取模，其结果即为选择出的Queue的QueueId。
+>
+>**取模算法存在一个问题：不同选择key与Queue数量取模结果可能会是相同的，即不同的选择key的消息可能出现相同的Queue，即同一个Consumer可能会消费到不同选key的消息。这个问题如何解决？？** 
+>
+>**一般做法：**从消息中获取到选择key，对其进行判断。若是当前consumer需要消费的消息，则直接消费，否则，什么也不做。这种做法要求选择key要能够随着Consumer获取到。此时使用消息key做为选择key是比较好的做法 。
+>
+>**以上做法会不会出现新的问题呢？？**
+>
+>以上做法会不会出现如下新的问题呢？不属于那个Consumer的消息被拉取走了，那么应该消费该消息的Consumer是否还能在消费该消息呢？同一个Queue中的消息不可能被同一个Group中不同的Consumer同时消费。所以，消费一个Queue的不同选择key的消息的Consumer一定属于不同的Group。而不同的Group中的Consumer间的消费是相互隔离的，互不影响的。
+
+
+
+![image-20220522120439961](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h1vhy7vgj20lv0a5aak.jpg)
+
+
+
+### 三、延时消息
+
+#### 什么是延时消息
+
+> 当消息写入大Broker后，在指定的时长后才可被消费处理的消息，称为延时消息。
+
+采用RocketMq的延时消息可以实现定时任务的功能，而无需使用定时器。典型的应用场景是：电商交易中潮湿未支付关闭订单的场景，12306平台订票系统超时未支付取消订票的场景
+
+>在电商平台中，订单创建时会发送一条延迟消息。这条消息将会在30分钟后投递给后台业务系统（Consumer），后台业务系统收到该消息后会判断对应的订单是否已经完成支付。如果未完成，则取消订单，将商品再次放回到库存；如果完成支付，则忽略。
+>
+>在12306平台中，车票预订成功后就会发送一条延迟消息。这条消息将会在45分钟后投递给后台业务系统Consumer中，后台业务系统收到该消息后会判断对应的订单是否已经完成支付。如果未完成，则取消预订，将车票再次放回票池；如果未完成支付，则忽略
+
+
+
+#### 延迟等级
+
+延时消息的延迟时长**不支持随意时长**的延迟，是通过特定的延迟等级来指定的。延迟等级定义在RocketMq服务端的**MessageStoreConfig**类中的如下变量中：
+
+```java
+// org/apache/rocketmq/store/config/MessageStoreConfig.java
+
+private String messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h";
+```
+
+即，若指定的延时等级未3，则表示延时时长未10s，即延迟等级是从1开始计数的。
+
+当然如果需要自定义的延时等级，可以通过在broker加载的配置中新增如下配置（例如下面增加了一天这个等级）。配置文件在RocketMQ安装目录下的conf目录中。
+
+![image-20220522151823081](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h7h0bu3ij20lv01gjre.jpg)
+
+
+
+#### 延时消息实现原理
+
+ ![image-20220522152046407](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h7jhxbdnj20mn0d6mxz.jpg)
+
+
+
+
+
+##### 修改消息
+
+![image-20220522154411639](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h87w5a24j20cq0fagmc.jpg)
+
+Producer将消息发送到Broker后，Broker会首先将消息写入到commitlog文件中，然后需要将其分发到相应的consumerQueue中。不过，在分发之前，系统会判断消息是否带有延时等级，若没有，则直接正常分发；若有，则需要经历一个复杂的过程：
+
+* 修改消息的Topic未Schedule_Topic_XXXX
+
+* 根据延时等级，在consumerqueue目录中Schedule_Topic_XXX主题下创建出相应的queueId目录与consumerQueue文件（如果没有这些目录与文件的话）
+
+  >延迟等级delayLevel与QueueId的对应关系为queueId = delayLevel -1
+  >
+  >
+  >
+  >需要注意，在创建queueId目录时，并不是一次性将所有延迟等级对应的目录全部创建完毕，而是用到哪个延迟等级就创建哪个目录
+
+![image-20220522160210749](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h8qkjl27j20jc03faa8.jpg)
+
+* 修改消息索引单元内容。索引单元中的**Message Tag HashCode**部分原本存放的是消息的Tag的Hash值。现修改为消息的**投递时间**。投递时间是指该消息被重新修改为原Topic后再次被写入到commitLog中的时间。***投递时间=消息存储时间+延迟等级时间***。消息存储时间指的是消息被发送到Broker时的时间戳。
+
+* 将消息索引写入到Schedule_Topic_XXXX主题下相应的consumequeue中
+
+  >***Schedule_Topic_XXXX目录中各个延时等级Queue中的消息是如何排序的？***
+  >
+  >
+  >
+  >**是按照消息投递时间排序的。**一个Broker中的桶以等级的所有延时消息会被写入到consumequeue目录中 Schedule_Topic_XXXX目录下相同的Queue中。即一个Queue中消息投递时间的延迟等级时间是相同的。那么投递时间就取决于消息存储时间了。**即按照消息被发送到Broker的时间进行排序的。**
+
+
+
+##### 投递延时消息
+
+Broker内部有一个延迟消息服务类ScheduleMessageService，其会消费Schedule_Topic_XXXX中的消息，即按照每条消息的投递时间，将延迟消息投递到目标Topic中，不过，在投递之前会从commitLog中将原来写入的消息再次读出，并将其原本的延迟等级设置为0，即原消息变为了一条不延迟的普通消息。然后再次将消息投递到目标Topic中。
+
+>**ScheduleMessageService** 在Broker启动时，会创建并启动一个定时器**Timer**，用于执行相应的定时任务。系统会根据延时等级的个数，定义相应数量的TimerTask，**每个TimerTask负责一个延迟等级消息**的消费与投递。**每个TimerTask都会检测相应Queue队列的第一条消息是否到期**。若第一条消息未到期，则后面的所有消息更不会到期（消息是按照投递时间排序的）；若第一条消息到期了，则将该消息投递到目标Topic，即消费该消息。
+
+
+
+##### 将消息重新写入commitlog
+
+延时消息服务类ScheduleMessageService 将延迟消息再次发送给commitLog，并再次形成新的消息索引条目，分发到相应的Queue
+
+>这其实就是一次普通消息发送。只不过这次的消息Producer是延迟消息服务类**ScheduleMessageService**
+
+
+
+
+
+### 四、事务消息
+
+#### 问题引入
+
+> 需求场景：工行用户A向建行用户B转账1万元
+
+![image-20220522180212238](https://tva1.sinaimg.cn/large/e6c9d24egy1h2hc7ige22j20k507x3yo.jpg)
+
+ ![image-20220522180339518](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220522180339518.png)
+
+1) 工行系统发送一个给B增款1万元的同步消息M给Broker
+
+2) 消息被Broker成功接收后，向工行系统发送成功ACK
+
+3) 工行系统收到成功ACK后用户A中扣款1万元
+
+4) 建行系统从Broker中获取到消息M
+
+5) 建行系统消费消息M，即向用户B中增加一万元
+
+   >其中是有问题的：
+   >
+   >若第三步的扣款操作失败，但消息已经成功发送到了Broker。对于MQ来说，只要消息写入成功，那么这个消息就可以被消费。此时建行系统中用户B增加了一万元。出现了数据不一致问题。
+
+
+
+#### 解决思路
+
+解决思路：让第1、2、3步具有原子性，要么全部成功，要么全部失败。即消息发送成功后，必须要保证扣款成功。如果扣款失败，则回滚发送成功的消息。而该思路即使用事务消息。这里要使用**分布式事务**解决方案。
+
+
+
+![image-20220522210944625](https://tva1.sinaimg.cn/large/e6c9d24egy1h2hhmr2dumj20ft0em753.jpg)
+
+**使用事务消息来处理该需求场景：**
+
+1. 事务管理器TM向事务协调器TC发起指令，开启**全局事务**
+
+2. 工行系统发一个给B增款一万元的事务M 给TC
+
+3. TC会向Broker发送**半事务消息prepareHalf**，将消息M预提交到Broker。此时的建行系统是看不到Broker中的消息M的
+
+4. Broker会将预提交执行结果给**TC**
+
+5. 如果预提交失败，则TC向TM上报预提交失败的相应，全局事务结束；如果预提交成功，TC会调用工行系统的**回调操作**，去完成工行用户A的**预扣款**1万元的操作
+
+6. 工行系统会向TC发送预扣款执行结果，即**本地事务**的执行状态
+
+7. TC收到预扣款执行结果后，会将结果上报给TM
+
+   > 预扣款执行结果存在三种可能性
+   >
+   > ```java
+   > package org.apache.rocketmq.client.producer;
+   > public enum LocalTransactionState {
+   >     COMMIT_MESSAGE,
+   >     ROLLBACK_MESSAGE,
+   >     UNKNOW;
+   >     private LocalTransactionState() {
+   >     }
+   > }
+   > ```
+
+8. TM会根据上报结果向TC发出不同的指令
+
+   * 若预扣款成功（本地事务状态为**COMMIT_MESSAGE**），则TM向TC发送**Global Commit**指令
+   * 若预扣款失败（本地事务状态为**ROLLBACK_MESSAGE**），则TM向TC发送**Global Rollback**指令
+   * 若出现未知状态（本地事务为UNKONW），则会触发工行系统的本地事务状态**回查操作**。回查操作会将回查结果 即COMMIT_MESSAGE或ROLLBACK_MESSAGE给TC。TC将结果上报给TM，TM会再向TC发送最终确认指令Global Commit或者Global Rollback 
+
+9. TC在接收到指令后会向Broker与工行系统发出确认指令
+
+   * TC接收的若是Global Commit指令，则向Broker与工行系统发送Branch Commit 指令，此时Broker中的消息M才可被建行系统所看到的；此时的工行用户A的扣款操作才真正被确认
+   * TC接收到若是Global Rollback指令，则向Broker与工行系统发送Branch Rollback指令。此时Broker中的消息M将被撤销；工行用户A中的扣款操作将被回滚
+
+   >**以上方案就是为了确保消息投递与扣款操作能够在一个事务中，要成功都成功，有一个失败则全部回滚。**
+   >
+   >
+   >
+   >以上方案并不是一个典型XA模式。因为XA模式中的分支事务是异步的，而上述例子事务消息方案中的消息预提交预与预扣款操作间是同步的
+
+
+
+
+
+#### 事务基础
+
+##### 分布式事务
+
+```
+对于分布式事务，通俗地说就是，一次操作由若干分支操作组成，这些分支操作分属不同应用，分布在不同的服务器上。分布式事务需要保证这些分支操作要么全部成功，要么全部失败。分布式事务与普通事务一样，就是为了保证操作结果的一致性。
+```
+
+
+
+##### 事务消息
+
+```
+RocketMQ提供了类似X、Open XA的分布式事务功能，通过事务消息达到分布式事务的最终一致。XA是一种分布式事务解决方案，一种分布式事务处理模式。
+```
+
+
+
+##### 半事务消息
+
+```
+暂不能投递的消息，发送方已经成功地将消息发送到了Broker，但是Broker未收到最终的确认指令，此时该消息被标记为“暂不能投递”状态，即不能被消费者看到。处于该种状态下的消息即半事务消息。
+```
+
+
+
+##### 本地事务状态
+
+```
+Producer回调操作执行的结果为本地事务状态，其会发送给TC，而TC会再发送给TM。TM会根据TC发送来的本地事务状态来决定全局事务确认指令。
+```
+
+```java
+package org.apache.rocketmq.client.producer;
+public enum LocalTransactionState {
+    COMMIT_MESSAGE,
+    ROLLBACK_MESSAGE,
+    UNKNOW;
+    private LocalTransactionState() {
+    }
+}
+```
+
+
+
+##### 消息回查
+
+![image-20220522215749077](https://tva1.sinaimg.cn/large/e6c9d24egy1h2hj0o9c96j20pf0k7jse.jpg)
+
+
+
+消息回查，即重新查询本地事务的执行状态。本例就是重新到DB中查看预扣款操作是否执行成功。
+
+ >注意，消息回查不是重新执行回调操作。回调操作是进行预扣款处理的，而消息回查则是查看预扣款操作执行的结果
+ >
+ >
+ >
+ >引起消息回查的原因最常见的有两个：
+ >
+ >1. 回调操作返回UNKONW
+ >2. TC没有接收到TM返回的最终全局事务确认指令
+
+##### RocketMQ中的消息回查设置
+
+关于消息回查，有三个常见的属性设置。它们都在Broker加载的配置文件中设置，例如：
+
+* transactionTimeout=20 指定TM在20秒内应将最终确认状态返回给TC，否则引发消息回查。默认为60s
+* transactionCheckMax =5，指定最多回查5次，超过后将丢弃消息并记录错误日志。默认15词。
+* transactionCheckInterval =10，指定设置的多次消息回查的时间间隔为10s，默认为60s。
+
+
+
+#### XA模式三剑客
+
+##### XA协议
+
+```
+XA（Unix Transaction） 是一种分布式事务解决方案，一种分布式事务处理模式，是基于XA协议。XA协议由Tuxedo（Transaction for Unix has been Extended for Distribute  Operation  分布式操作扩展之后的Unix事务系统）首先提出的，并由X/Open组织，作为资源管理器与事务管理器的接口标准。
+```
+
+```
+XA模式中有三个重要组件：**TC、TM、RM**
+```
+
+
+
+##### TC
+
+```
+Transaction Coordinator，事务协调者。维护全局和分支事务的状态，驱动全局事务提交或者回滚。
+
+Broker充当这个角色
+```
+
+
+
+##### TM
+
+```
+Transaction Manager  事务管理器，定义全局事务的范围：开始全局事务、提交或回滚全局事务。它实际是全局事务的发起者
+
+Producer充当着TM
+```
+
+
+
+##### RM
+
+```
+Resource Manager ,资源管理器。管理分支事务处理的资源，与TC交谈以注册分支事务和报告分支事务的状态，并驱动分支事务提交或回滚
+
+Producer及Broker 均是RM
+```
+
+
+
+#### XA模式架构
+
+![image-20220523230225634](https://tva1.sinaimg.cn/large/e6c9d24egy1h2iqi7csutj20ix0dpjsi.jpg)
+
+ XA是一个典型2PC，其执行原理如下：
+
+1. TM向TC发起指令，开启一个全局事务
+
+2. 根据业务要求，各个RM会逐个向TC注册分支事务，然后TC会逐个向RM发出预执行指令
+
+3. 各个RM在接收到指令后会在进行本地事务预执行
+
+4. RM将执行结果Report给TC。当然，这个结果可能是成功，也可能是失败。
+
+5. TC在接收到各个RM的Report后会将汇总结果上报给TM，根据汇总结果TM向TC发出确认指令
+
+   * 若所有结果都是成功响应，则向TC发送GlobalCommit 指令
+   * 只要结果是失败响应，则向TC发送Global Rollback指令
+
+6. TC在接收指令后再次向RM发送确认指令
+
+   > 事务消息方案并不是一个典型的XA模式。因为XA模式中的分支事务是异步的，而事务方案中的消息预提交与扣款操作间是同步的。
+
+
+
+#### 注意
+
+* 事务消息不支持延时消息
+* 对于事务消息要做好幂等性减产，因为事务消息可能不止一次被消费（因为存在回滚后在提交的情况）
+* **事务消息不支持延时消息和批量消息。**
+* 为了避免单个消息被检查太多次而导致半队列消息累积，我们默认将单个消息的检查次数限制为 15 次，但是用户可以通过 Broker 配置文件的 `transactionCheckMax`参数来修改此限制。如果已经检查某条消息超过 N 次的话（ N = `transactionCheckMax` ） 则 Broker 将丢弃此消息，并在默认情况下同时打印错误日志。用户可以通过重写 `AbstractTransactionalMessageCheckListener` 类来修改这个行为。
+* 事务消息将在 Broker 配置文件中的参数 transactionTimeout 这样的特定时间长度之后被检查。当发送事务消息时，用户还可以通过设置用户属性 CHECK_IMMUNITY_TIME_IN_SECONDS 来改变这个限制，该参数优先于 `transactionTimeout` 参数。
+* **事务性消息可能不止一次被检查或消费。**
+* 提交给用户的目标主题消息可能会失败，目前这依日志的记录而定。它的高可用性通过 RocketMQ 本身的高可用性机制来保证，如果希望确保事务消息不丢失、并且事务完整性得到保证，建议使用同步的双重写入机制。
+* 事务消息的生产者 ID 不能与其他类型消息的生产者 ID 共享。与其他类型的消息不同，事务消息允许反向查询、MQ服务器能通过它们的生产者 ID 查询到消费者
+
+
+
+### 五、批量发送消息
+
+#### 批量发送消息
+
+##### 发送限制
+
+生产者进行消息发送时可以一次发送多条消息，这可以大大提升Producer的发送效率。不过需要注意以下几点：
+
+* 批量发送的消息必须具有相同的Topic
+* 批量发送的消息必须具有相同的刷盘策略
+* 批量发送的消息不能是延迟消息与事务消息
+
+
+
+##### 批量发送大小
+
+默认情况下，一批发送的消息总大小不能超过4MB字节。如果想超过该值，有两种解决方案：
+
+* 方案一：将批量消息进行拆分，拆分为若干不大于4M的消息集合分多次批量发送
+
+* 方案二：在Producer端与Broker端修改属性
+  * Producer端需要在发送之前设置的Producer的MaxMessageSize属性
+  * Broker端需要修改其加载的配置文件中的maxMessageSize属性
+
+
+
+##### 生产者发送的消息大小
+
+![image-20220529124756034](https://tva1.sinaimg.cn/large/e6c9d24egy1h2p6gmxtpxj20ew05yq2x.jpg)
+
+
+
+![image-20220529124850739](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220529124850739.png)
+
+ 
+
+#### 批量消费消息
+
+
+
+使用MessageListenerConcurrently监听接口的consumeMessage() 方法的第一个参数为消息列表，但默认情况下，每次只能消费一条消息。若要使其一次可以消费多条消息，则可以通过COnsumer的consumeMessageBatchMaxSize属性来指定。不过，该值不能超过32。因为默认情况下消费者每次可以拉取的消息最多是32条。若要修改一次拉取的最大值，则可以通过修改Consumer的pullBatchSize属性来指定。
+
+
+
+##### 存在的问题
+
+consumer的pullBatchSize属性与consumeMessageBatch属性是否设置越大越好？当然不是
+
+* pullBatchSize值设置的越大，Consumer每拉取一次需要的时间就会越长，且在网络上传输出现问题的可能性就越高。**若在拉取过程中若出现了问题，那么本批次所有的消息都需要全部重新拉取**
+* consumerMessageBatchMaxSize值设置的越大，Consumer的消息并发消费能力越低，且这批被消费的消息具有相同的效果。因为consumeMessageBatchMaxSize指定的一批消息只会使用一个线程进行处理，**且在处理过程中只要有一个消息处理异常，则这批消息需要全部重新再次消费处理。**
+
+
+
+#### 代码举例
+
+该批量发送的需求时，不修改最大发送4M的默认值，但要防止发送的批量消息超过4M的限制。
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 六、消息过滤
+
+
+
+
+
+### 七、消息消费重试机制
+
+
+
+
+
+### 八、死信队列
+
+
+
+
+
+### 九、消息发送重试机制
 
 
 
