@@ -617,17 +617,7 @@ RocketMq中，无论是消息本身还是消息索引，都是存储在磁盘上
 
 RockerMQ中可能会影响性能的是对commitlog文件的读取。因为对commitlog文件来说，读取消息时会产生大量的随机访问，而随机访问会严重影响性能。不过，如果选择合适的系统IO调度算法，比如设置调度算法为Deadline（采用SSD固态硬盘的话），随机读取性能也会有所提升。
 
-# TODO：P48
-
-
-
-
-
-
-
-
-
-
+# TODO：P53
 
 
 
@@ -635,9 +625,99 @@ RockerMQ中可能会影响性能的是对commitlog文件的读取。因为对com
 
 ### 三、indexFile
 
+除了通过通常的指Topic进行消息消费外，RocketMQ还提供了根据key进行消息查询的功能。该查询是通过store目录中的index子目录中的indexFile进行索引实现快速查询的。当然，这个indexFile中的索引数据是在包含了key的消息被发送到Broker时写入的。如果消息中没有包含key，则不会写入。
+
+#### 索引条目结构
+
+每个Broker中会包含一组indexFile，每个indexFile都是以一个时间戳命名的（这个indexFile被创建的时间戳）。每个indexFile文件由三部分组成：**indexHeader、slots槽位、indexes索引数据**。每个IndexFile文件中包含500万个slot槽位。而每个slot槽又可能会挂载很多的index单元。
+
+![image-20220604161123270](https://tva1.sinaimg.cn/large/e6c9d24egy1h2wlawf368j20mq08qwel.jpg)
+
+indexHeader 固定40个字节，其中存放着如下数据：
+
+![image-20220604161433565](https://tva1.sinaimg.cn/large/e6c9d24egy1h2wlatyljxj216u09yq3o.jpg)
+
+* beginTimestamp：该indexFile中第一条消息的存储时间
+* endTimestamp：该indexFile中最后一条消息存储时间
+* beginPhyoffset：该indexFile中第一条消息在commitlog中的偏移量commitlog offset
+* endPhyoffset：该indexFile中最后一条消息在commitlog中的偏移量commitlog offset
+* hashSlotCount：已经填充有index的slot数量（并不是每个slot槽下都挂载有index索引单元，这里统计的是所有挂载了index索引单元的slot槽的数量）
+* indexCount：该indexFile中包含的索引个数（统计出当前indexFile中所有slot槽下挂载的所有index索引单元的数量之和）
+
+indexFile中最复杂的是Slots和indexes之间的关系。在实际存储时，Indexes是在slots后面的，但为了便于理解，将他们的关系展示为如下形式：
+
+![image-20220604161741514](https://tva1.sinaimg.cn/large/e6c9d24egy1h2wlas60kej21960tw0v7.jpg)
+
+
+
+**key的hash值%500w**的结果即为slot槽位，然后将该slot值修改为该index索引单元的indexNo，根据这个indexNo可以计算出该index单元在indexFile中的位置。不过，该取模结果的重复率是很高的，为了解决该问题，在每个idnex索引单元中增加了preIndexNo，用于指定该slot中当前index索引单元的前一个index索引单元。而slot中始终存放的是其下最新的index索引单元的indexNo，这样的话，只要找到了slot就可以找到其最新的索引单元，而通过这个index索引单元就可以找到其之前的所有的index索引单元。
+
+> indexNo是一个在indexFile中的流水号，从0开始依次递增。即在一个indexFile中所有的indexNo是以此递增的。indexNo在index索引单元中是没有体现的，其实通过indexes中依次数出来的。
+
+
+
+![image-20220604162134378](https://tva1.sinaimg.cn/large/e6c9d24egy1h2wlarda7cj210e0a8mxl.jpg)
+
+* keyHash：消息中指定的业务key的hash值
+* phyOffset：当前key对应的消息在commitlog中的偏移量commitlog offset
+* timeDiff：当前key对应消息的存储时间与当前的indexFile创建时间的时间差
+* preIndexNo：当前slot下当前index索引单元的前一个index索引单元的indexNo
+
+
+
+#### indexFile的创建
+
+indexFile的文件名为当前文件被创建时的时间戳。这个时间戳有什么作用呢？
+
+根据业务key进行查询时，查询条件除了key以外，还需要指定一个要查询的时间戳，表示要查询不大于该时间戳的最新的消息。即查询指定时间戳之前存储的最新消息。这个时间戳文件名可以简化查询，提高查询效率。具体后面会讲解。
+
+indexFile文件是何时创建的？其创建的条件（时机）有两个：
+
+* 当第一条带key的消息发送来后，系统发现没有indexFile，此时会创建第一个indexFile文件
+* 当一个indexFile挂载的index索引单元数量超出2000w个时，会创建新的indexFile。当待key的消息发送到来后，系统会找到最新的indexFile，并从其indexHeader的最后4字节读取到IndexCount。若IndexCount>=2000w时，会创建新写的IndexFile。
+
+> 由此可以推算出，一个indexFile 的最大大小是：（40+ 500w * 4 + 2000w * 20 ）  字节
+
+
+
+#### 查询流程
+
+当消费者通过业务key来查询相应的消息时，
+
+![image-20220604224007990](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220604224007990.png)
+
+
+
+具体查询流程如下：
+
+![image-20220604230236694](https://tva1.sinaimg.cn/large/e6c9d24egy1h2wly483oxj20tp0h30ub.jpg)
+
 
 
 ### 四、消息的消费
+
+消费者从Broker中获取消息的方式有两种：pull拉取方式和朴实推动方式。消费者组对于消息消费的模式又分为两种：集群消费Clustering和广播消费Broadcasting
+
+
+
+#### 获取消费方式
+
+**拉取式消费**
+
+Consumer主动从Broker中拉取消息，主动权由Consumer控制。一单获取了批量消息，就会启动消费过程。不过，该方式的实时性较弱，即Broker中有了新的消息时消费者并不能及时发现并消费。
+
+> 由于拉取时间间隔是由用户指定，所以在设置间隔时需要注意平稳：间隔太短，空请求比例会增加；间隔太长，消息的实时性太差
+
+**推送式消费**
+
+该模式下Broker收到数据后会主动推送给Consumer。该获取方式一般实时性较高。
+
+该获取方式是典型的 发布-订阅 模式，即Consumer向其关联的Queue注册了监听器，一旦发现有新的消息到来就会触发回调的执行，回调方法是Consumer去Queue中拉取消息。而这些都是基于Consumer与Broker间的长连接的。长连接的维护是需要消耗系统资源的。
+
+**对比**
+
+* Pull：需要应用去实现对关联Queue的遍历，实时性差；但便于应用控制消息的拉取
+* Push：封装了对关联Queue的遍历，实时性强，但会占用较多的系统资源
 
 
 
