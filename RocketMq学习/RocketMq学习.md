@@ -617,7 +617,7 @@ RocketMq中，无论是消息本身还是消息索引，都是存储在磁盘上
 
 RockerMQ中可能会影响性能的是对commitlog文件的读取。因为对commitlog文件来说，读取消息时会产生大量的随机访问，而随机访问会严重影响性能。不过，如果选择合适的系统IO调度算法，比如设置调度算法为Deadline（采用SSD固态硬盘的话），随机读取性能也会有所提升。
 
-# TODO：P53
+# TODO：P63
 
 
 
@@ -682,11 +682,26 @@ indexFile文件是何时创建的？其创建的条件（时机）有两个：
 
 #### 查询流程
 
-当消费者通过业务key来查询相应的消息时，
+当消费者通过业务key来查询相应的消息时，其需要经过一个相对复杂查查询流程。不过，在分析查询流程之前，首先要清楚几个定位计算公式：
 
-![image-20220604224007990](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220604224007990.png)
+```
+计算指定消息key的slot槽位序号：
+slot槽位序号=key的hash % 500w
+```
 
+```
+计算槽位序号为n的slot在indexFile的起始位置：
+slot（n）位置=40 + （n-1）*4
+```
 
+```
+计算指定消息key的slot槽位序号：
+index（m）位置 = 40+ 500w*4 + (m-1)*20
+```
+
+> 40为indexFile中的indexHeader的字节数
+>
+> 500w*4 是所有slots所占的
 
 具体查询流程如下：
 
@@ -721,11 +736,340 @@ Consumer主动从Broker中拉取消息，主动权由Consumer控制。一单获�
 
 
 
+#### 消费模式
+
+##### 广播消费
+
+> 广播消费模式下，相同Consumer Group的每个Consumer实例都接收到同一个Topic的全量消息。即每条消息都会被发送到Consumer Group中的**每个Consumer。**
+
+![image-20220605135342695](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605135342695.png)
+
+##### 集群消费
+
+> 集群消费模式下，相同Consumer Group的每个Consumer实例平均分摊同一个Topic的消息。即每条消息只会被发送到到Consumer Group中的**某个Consumer。**
+
+![image-20220605135605751](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605135605751.png)
+
+
+
+##### 消息进度保存
+
+*  广播模式：消费进度保存在consumer端。因为广播模式下 consumer group 中每个consumer 都会消费所有消息，但它们的消费进度是不同。所以consumer各自保存各自的消费进度。
+* 集群模式：消费进度保存在broker中。consumer group中的所有consumer共同消费同一个Topic中的消息，同一条消息只会被消费一次。消费进度会参与到了消费的负载均衡中，故消费进度是需要共享的。
+
+
+
+#### Rebalance机制
+
+##### 什么是Rebalance
+
+Rebalance 即再均衡，指的是，将一个Topic下的多个Queue在同一个Consumer Group中的多个Consumer间进行重新分配的过程。
+
+![image-20220605140815614](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605140815614.png)
+
+Rebalance机制的本意是为了**提升消息的并行消费能力**。例如，一个Topic下5个队列，在只有1个消费者的情况下，这个消费者将负责消费这5个队列的消息。如果此时我们增加了一个消费者，那么就可以给其中一个消费者分配2个队列，给另一个分配3个队列，从而提升消息的并行消费能力。
+
+
+
+##### Rebalance限制
+
+由于一个队列最多分配给一个消费者，因此当某个消费者组下的消费者实例数量大于队列的数量时，对于的消费者实例将分配不到任何队列。
+
+
+
+##### Rebalance危害
+
+Rebalance在提升消费能力的同时，也带来一些问题：
+
+**消费暂停**：在只有一个Consumer时，其负责消费所有队列；在新增了一个Consumer后会触发Rebalance的发生。此时原Consumer就需要暂停部分队列的消费，等到这些队列分配给新的Consumer后，这些暂停消费的队列才能被继续消费。
+
+**消费重复**：Consumer在消费新分配给自己的队列时，必须接着之前Consumer提交的消费进度的offset继续消费。然而默认情况下，offset是异步提交的，这个异步提交特性导致提交到Broker的offset与Consumer实际消费的消息并不一致。这个不一致的差值就是可能会重复消费的消息。
+
+> **同步提交**：consumer提交了其消费完毕的一批消息的offset给Broker后，需要等待Broker的成功ACK。当收到ACK后，consumer才会继续获取并消费给下一批消息。在等待ACK期间，consumer是阻塞的。
+>
+> **异步提交**：consumer提交了其消费完毕的一批消息的offset给Broker后，不需要等待Broker的成功ACK。consumer可以直接获取并消费下一批消息。
+>
+> 对于一次性读取消息的数量，需要根据具体业务员场景选择一个相对均衡的是很有必要的。因为数量过大，系统性能提升了，但产生重复消费的消息数量可能会增加；数量过小，系统性能会下降，但被重复消费的消息数量可能会减少
+
+
+
+**消费突刺**：由于Rebalance可能导致重复消费，如果需要重复消费的消息过多，或者因为Rebalance暂停时间过长从而导致挤压了部分消息。那么有可能会导致在Rebalance结束之后瞬间需要消费很多消息。
+
+
+
+##### Rebalance产生的原因
+
+导致Rebalance产生的原因，无非就两个：消费者所订阅Topic的Queue数量发生变化，或消费者组消费者的数量发生变化。
+
+> **1）Queue数量发生变化的场景：**
+>
+> Broker扩容或缩容
+>
+> Broker升级运维
+>
+> Broker与NameServer间的网络异常
+>
+> Queue扩容或缩容
+>
+> **2）消费者数量发生变化的场景：**
+>
+> Consumer Group扩容或缩容
+>
+> Consumer升级运维
+>
+> Consumer与NameServer间网络异常
+
+
+
+##### Rebalance过程
+
+在Broker中维护着多个Map集合，这些集合中订阅存放着当前Topic中Queue的信息、Consumer Group中Consumer实例的信息。一但发现消费者所订阅的Queue数量发生变化，或消费者组中消费者的数量发生变化，立即向Consumer Group中的每个实例发出Rebalance通知。
+
+> **TopicConfigManager**：key是Topic名词，value是TopicConfig。TopicConfig中维护着该Topic中所有Queue的数据
+>
+> **ConsumerManager**：key是Consumer Group Id，value是ConsumerGroupInfo。ConsumerGroupInfo中维护着该Group中所有Consumer实例数据。
+>
+> **ConsumerOffsetManager**：key为Topic与订阅该Topic的Group的组合，value是一个内层Map。内层Map的key为QueueId，内层的value为该Queue的消费进度offset。
+
+Consumer实例在接收到通知后会采用**Queue分配算法**自己获取到相应的Queue，既由Consumer实例自主进行Rebalance。
+
+
+
+##### 与Kafka对比
+
+在Kafka中，一单发现出现了Rebalance条件，Broker会调用Group Coordinator来完成Rebalance。Coordinator是Broker中的一个进程。Coordinator会在Consumer Group中选出一个Group Leader。由这个Leader根据自己本身组情况完成Partition分区的再分配。这个再分配结果会上报给Coordinator，并由Coordinator同步给Group中的所有Consumer实例。
+
+Kafka的Rebalance是由Consumer Leader完成的。而RocketMQ中的Rebalance是由每个Consumer自身完成的，Group中不存在Leader。
+
+
+
+#### Queue分配算法
+
+一个Topic中的Queue只能由Consumer Group中的一个Consumer进行消费，而一个Consumer可以同时消费多个Queue中的消息。那么Queue与Consumer间的配对关系是如何确定的，即Queue要分配给哪个Consumer进行消费，也是有算法策略的。常见的有四种策略。这些策略是通过在创建的Consumer时的构造器传进去的。
+
+
+
+##### 平均分配策略
+
+![image-20220605151811080](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xe9cpk93j20gr0c9mxw.jpg)
+
+该算法是要根据avg = QueueCount / ConsumerCount 的计算结果进行分配的。如果能够整除，则按顺序将avg个Queue逐个分配Consumer；如果不能整除，则将多余的Queue按照Consumer顺序逐个分配。
+
+> 该算法即，先计算好每个Consumer应该分得几个Queue，然后再依次将这些数量的Queue逐个分配各个Consumer。
+
+
+
+
+
+##### 环形平均策略
+
+![image-20220605151947163](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xe9agl0xj20mu0jjq3q.jpg)
+
+环形平均算法是指，根据消费者的顺序，依次在由Queue队列组成的环形图中逐个分配。
+
+> 该算法不用实现计算每个Consumer需要分配几个Queue，直接一个个分即可。
+
+ 
+
+##### 一致性hash策略
+
+![image-20220605152233097](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xe9pap65j20id0h90tb.jpg)
+
+该算法会将consumer的hash值作为Node节点存放到hash环上，然后将queue的hash值也放到hahs环上，通过**顺时针**方向，距离queue最近的那个consumer就是该queue要分配的consumer。
+
+> 该算法存在的问题：分配不均。
+
+
+
+
+
+##### 同机房策略
+
+![image-20220605152458453](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xec8epmvj20ny0dljst.jpg)
+
+该算法会根据queue的部署机房位置和consumer的位置，过滤出当前consumer相同机房的queue。然后按照拼接分配策略或环形平均策略对机房queue进行分配。如果没有同机房queue，则按照平均分配策略或环形平均策略对所有queue进行分配。
+
+
+
+##### 对比
+
+**一致性hash算法存在的问题：**
+
+两种分配策略的分配效率较高，一致性hash策略的较低。因为一致性hash算法较复杂。另外，一致性hash策略分配的结果也很可能存在不平均的情况。
+
+**一致性hash算法存在的意义：**
+
+可以有效减少由于消费者组扩容或缩容所带来的大量的Rebalance。
+
+![image-20220605153737940](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xepdysn9j211v0fsdht.jpg)
+
+![image-20220605153723019](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xep3wh3dj20xt0ibgmz.jpg)
+
+
+
+一致性hash算法的应用场景：
+
+> Consumer数量变化频繁的场景
+
+
+
+#### 至少一次原则
+
+RocketMQ有一个原则：每条消息必须要被**成功消费**一次
+
+那么什么是成功消费？Consumer在消费完消息后会向其消费进度记录器提交其消费消息的offset，offset被成功记录到记录器中，那么这条消息就被成功消费了。
+
+> 什么是消费进度记录器？
+>
+> 对于广播消费模式来说，Consumer本身就是消费进度记录器
+>
+> 对于集群消费模式来说，Broker是消费进度记录器
+
+
+
 ### 五、订阅关系的一致性
+
+订阅关系的一致性指的是，同一个消费者组（Group ID相同）下所有Consumer实例所订阅的Topic与Tag及对消息的处理逻辑必须完全一致。否则，消息消费的逻辑就会混乱，甚至导致消息丢失。
+
+
+
+#### 正确的订阅关系
+
+订阅关系保持一致
+
+![image-20220605161535159](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xfsy4f45j20j30g0gm8.jpg)
+
+
+
+#### 错误的订阅关系
+
+订阅关系没有保持一致
+
+![image-20220605161629250](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605161629250.png)
+
+
+
+##### 订阅了不同的Topic
+
+同一个Group上 有TopicA、TopicB
+
+一个Consumer 订阅了TopicA
+
+一个Consumer订阅了TopicB
+
+*这样就不一致了*
+
+ 
+
+##### 订阅了不同的Tag
+
+同一个Group上 有TopicA
+
+一个Consumer 订阅了TopicA ---TagA、TagB
+
+一个Consumer订阅了TopicA --- TagA
+
+*这样就不一致了*
+
+
+
+##### 订阅了不同数量的Topic
+
+同一个Group上 有TopicA、TopicB
+
+一个Consumer 订阅了TopicA
+
+一个Consumer订阅了TopicB、TopicA
+
+*这样就不一致了*
+
+
 
 
 
 ### 六、offset管理
+
+> 这里的offset指的是Consumer的消费进度offset
+
+消费进度Offset是用来记录每个Queue的不同消费组的消费进度的。根据消费进度记录器的不同，可以分为两种模式：本地模式和远程模式。
+
+
+
+#### offset本地管理模式
+
+当消费模式为广播消费时，Offset使用本地模式存储。因为每条消息会被所有的消费者消费，每个消费者管理自己的消费进度，各个消费者之间不存在消费进度的交集。
+
+Consumer在广播消费模式下Offset相关数据以json的形式持久化到Consumer本地磁盘文件中，默认文件路径为当前用户主目录下的.rocketmq_offsets/${clientId}/${group}/offset.json。其中${clientId}为当前消费者id，默认为ip@DEFAULT；${group}为消费者组名称。
+
+
+
+#### offset远程管理模式
+
+当消费模式集群消费时，Offset使用远程模式管理。因为所有Consumer实例对消息采用的是均衡消费，所有Consumer共享Queue的消费进度。
+
+Consumer在集群消费模式下Offset相关数据以json的形式持久化到Broker磁盘文件中，文件路径为当前用户主目录下的**store/config/consumeroffset.json**
+
+Broker启动时会加载这个文件，并写入到一个双层Map。外层Map的key为**topic@group**，value为内层map。内层map的key为queueId，value为Offset。当发生Rebalance时，新的Consumer会从该Map中获取到响应的数据来继续消费。
+
+集群模式下offset采用远程管理模式，主要是为了保证Rebalance机制。
+
+
+
+
+
+#### offset用途
+
+消费者是如何从最开始持续消费消息的？消费者要消费的第一条消息的起始位置是用户自己通过**consumer.setConsumerFromWhere()**方法指定的。
+
+在Consumer启动后，其要消费的第一条消息的起始位置常用的有三种，这三种位置可以通过枚举类型常量设置。这个枚举类型为ConsumerFromWhere。
+
+```java
+public enum ConsumeFromWhere {
+    CONSUME_FROM_LAST_OFFSET,
+    /** @deprecated */
+    @Deprecated
+    CONSUME_FROM_LAST_OFFSET_AND_FROM_MIN_WHEN_BOOT_FIRST,
+    /** @deprecated */
+    @Deprecated
+    CONSUME_FROM_MIN_OFFSET,
+    /** @deprecated */
+    @Deprecated
+    CONSUME_FROM_MAX_OFFSET,
+    CONSUME_FROM_FIRST_OFFSET,
+    CONSUME_FROM_TIMESTAMP;
+
+    private ConsumeFromWhere() {
+    }
+}
+```
+
+> **CONSUME_FROM_TIMESTAMP**：从指定的具体时间戳位置开始消费。这个具体时间戳是通过另外一个语句指定的。
+>
+> ```java
+> // yyyyMMddHHmmss
+> consumer.setConsumeTimestamp("20220611081111");
+> ```
+
+当消费完一批消息后，Consumer会提交其消费进度Offset给Broker，Broker在收到消费进度后会将其更新到双层Map（ConsumerOffsetManager）及consumerOffset.json文件中，然后向该Consumer进行ACK，而ACK内容中包含三项数据：当前消费队列的最小Offset（minOffset）、最大Offset（macOffset）、及下次消费的起始Offset（nextBeginOffset）。
+
+
+
+#### 重试队列
+
+![image-20220605202607829](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xn1id9akj20ty0jqacv.jpg)
+
+当RocketMQ对消息的消费出现异常时，会将发生异常的消息的Offset提交到Broker中的重试队列。系统在发生消息消费异常时会为当前的Topic@group创建一个重试队列，该队列以%RETRY%开头，到达重试时间后进行消费重试。
+
+
+
+
+
+#### offset的同步提交和异步提交
+
+集群消费模式下，Consumer消费完消息后会向Broker提交消费进度offset，其提交方式分为两种：
+
+* **同步提交**：消费者在消费完一批消息后会向Broker提交这些消息的offset，然后等待Broker的成功响应。若在等待超时之前收到了成功响应，则继续读取下一批消息进行消费（从ACK中获取nextBeginOffset）。若没有手动响应，则会重新提交，直到获取到响应。而在这个等待过程中，消费者是阻塞的。其严重影响了消费者的吞吐量。
+* **异步提交**：消费者在消费完一批数据后问Broker提交Offset，但无需等待Broker的成功响应，可以继续读取并消费下一批数据。这种方式增加了消费者的吞吐量。但需要注意，broker在收到提交的Offset后，还是会向消费者进行响应的。可能还没有收到ACK，此时Consumer会从Broker中直接获取nextBeginOffset
 
 
 
