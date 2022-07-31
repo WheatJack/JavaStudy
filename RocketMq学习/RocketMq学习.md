@@ -203,7 +203,7 @@ Broker充当着消息中转角色，负责存储消息、转发消息。Broker�
 
 5. Consumer和Producer类似，跟其中一台NameServer建立长连接，获取其所订阅Topic的路由信息，然后根据算法策略从路由信息中获取到其所要消费的Queue，然后直接跟Broker建立长连接，开始消费其中的消息。Consumer在获取路由信息后，同时也会每30s从NameServer更新一次路由信息。不过不同于Producer的是。Consumer还会向Broker发送心跳，以确保Broker的存活状态
 
-# TODO
+
 
 #### Topic创建流程
 
@@ -213,7 +213,7 @@ Broker充当着消息中转角色，负责存储消息、转发消息。Broker�
 
 * Broker模式：该模式下创建的Topic在该集群中，每个Broker中的Queue数量可以不同。
 
-自动创建Topic时，默认采用的是Broker模式，会为每个Broker默认创建四个Queue
+自动创建Topic时，默认采用的是Broker模式，会为每个**Broker默认创建四个Queue**
 
  
 
@@ -227,7 +227,7 @@ Broker充当着消息中转角色，负责存储消息、转发消息。Broker�
 
 **也就是说，当读/写队列数量设置为不同时，总是有问题的。那么，为什么要这样设计呢？**
 
-这样设计的目的是为了，方便Topic的Queue的缩容。
+这样设计的目的是为了，***方便Topic的Queue的缩容。***
 
 ```
 例如，原来创建的Topic中包含16个Queue，如何能够使其Queue缩容为8个，还不会丢失消息？可以动态修改写队列数量为8，读队列数量不变。此时新的消息只会写入到前8个队列，而消费都消费的却是16个队列中的数据。当发现后8个Queue中的消息消费完毕后，就可以再将读队列数量动态设置为8.整个缩容过程，没有丢失任何消息。
@@ -401,15 +401,11 @@ rocketmq.config.enableDashBoardCollect=true
 mvn clean package -Dmaven.test.skip=true
 ```
 
-
-
 #### 启动
 
 ```
 java -jar rocketmq-console-ng-1.0.0.jar
 ```
-
-
 
 #### 访问
 
@@ -491,7 +487,7 @@ RocketMQ中的消息存储在本地文件系统中，这些相关文件默认存
 
 ![image-20220504144842684](https://tva1.sinaimg.cn/large/e6c9d24egy1h1wdgkb41oj20s60a8wg8.jpg)
 
-| Abort            | 该文件在Broker启动后会自动创建，正常关闭Broker，该文件会自动消失。若没有启动Broker的情况下，发现这个文件是存在的，则说明之前的Broker的关闭时非正常关闭的。 |
+| Abort（终止）    | 该文件在Broker启动后会自动创建，正常关闭Broker，该文件会自动消失。若没有启动Broker的情况下，发现这个文件是存在的，则说明之前的Broker的关闭时非正常关闭的。 |
 | ---------------- | ------------------------------------------------------------ |
 | **checkpoint**   | 存放着commitlog、consumequeue、index文件的最后刷盘时间戳     |
 | **commitlog**    | 存放着commitlog文件，而消息是写在commitlog文件中的           |
