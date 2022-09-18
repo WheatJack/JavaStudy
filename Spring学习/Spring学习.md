@@ -1,6 +1,6 @@
 # 1、Spring学习
 
-
+> 源码地址：https://gitee.com/laihekele/spring-study
 
 1、了解预研究的组件（类）基本使用
 
@@ -1199,7 +1199,90 @@ bean0004
 
 ### 2、Bean注解详解
 
+> 扫描带有Bean注解的
 
+**main方法执行：**
+
+```java
+public static void main(String[] args) throws IOException {
+
+        GenericApplicationContext context = new GenericApplicationContext();
+        context.registerBean("config", Config.class);
+        // 注册后处理器
+        context.registerBean(AtBeanPostProcessor.class);
+        //初始化容器
+        context.refresh();
+        for (String beanDefinitionName : context.getBeanDefinitionNames()) {
+            System.out.println(beanDefinitionName);
+        }
+        // 容器关闭
+        context.close();
+    }
+```
+
+
+
+**AtBeanPostProcessor后处理器**
+
+```java
+public class AtBeanPostProcessor implements BeanDefinitionRegistryPostProcessor {
+
+
+    @Override
+    public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry beanFactory) throws BeansException {
+
+        try {
+          	// 获取所有的元数据
+            CachingMetadataReaderFactory cachingMetadataReaderFactory = new CachingMetadataReaderFactory();
+            // 根据路径名获取对应的Class
+            // TODO 应该扫描所有的@Configration 配置类 然后找到所有的Bean注解的方法
+            MetadataReader metadataReader = cachingMetadataReaderFactory.getMetadataReader(new ClassPathResource("com/example/springstudy/a05/Config.class"));
+            // 拿到所有的带有Bean注解的方法
+            Set<MethodMetadata> annotatedMethods = metadataReader.getAnnotationMetadata().getAnnotatedMethods(Bean.class.getName());
+            for (MethodMetadata annotatedMethod : annotatedMethods) {
+                BeanDefinitionBuilder beanDefinitionBuilder = BeanDefinitionBuilder.genericBeanDefinition();
+                // TODO  然后逐一扫描对应的Bean 而不应该指定一个对应的@Configuration
+                beanDefinitionBuilder.setFactoryMethodOnBean(annotatedMethod.getMethodName(), "config");
+                // Attention 自动装配 构造方法的参数 使用AUTOWIRE_CONSTRUCTOR，如果不加，会找不到引用
+                beanDefinitionBuilder.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR);
+                AbstractBeanDefinition beanDefinition = beanDefinitionBuilder.getBeanDefinition();
+                beanFactory.registerBeanDefinition(annotatedMethod.getMethodName(), beanDefinition);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+
+    }
+}
+```
+
+**输出日志：**
+
+> 可以看到对应Bean注解都能扫描到并加入到Bean容器中
+
+```java
+
+22:39:59.381 [main] DEBUG org.springframework.context.support.GenericApplicationContext - Refreshing org.springframework.context.support.GenericApplicationContext@e2d56bf
+22:39:59.427 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'com.example.springstudy.a05.processor.AtBeanPostProcessor'
+22:39:59.587 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'config'
+22:39:59.588 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'bean0001'
+Bean0001：：：我被spring管理了
+22:39:59.589 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'sqlSessionFactoryBean'
+22:39:59.596 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'dataSource'
+22:39:59.630 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Autowiring by type from bean name 'sqlSessionFactoryBean' via factory method to bean named 'dataSource'
+22:39:59.639 [main] DEBUG org.apache.ibatis.logging.LogFactory - Logging initialized using 'class org.apache.ibatis.logging.slf4j.Slf4jImpl' adapter.
+22:39:59.642 [main] DEBUG org.mybatis.spring.SqlSessionFactoryBean - Property 'configuration' or 'configLocation' not specified, using default MyBatis Configuration
+22:39:59.699 [main] DEBUG org.mybatis.spring.SqlSessionFactoryBean - Property 'mapperLocations' was not specified.
+config
+com.example.springstudy.a05.processor.AtBeanPostProcessor
+bean0001
+sqlSessionFactoryBean
+dataSource
+```
 
 
 
@@ -1207,25 +1290,110 @@ bean0004
 
 ### 3、Mapper注解详解
 
+> 扫描带有@Mapper注解的
+
+**main方法执行：**
+
+```java
+public static void main(String[] args) throws IOException {
+
+        GenericApplicationContext context = new GenericApplicationContext();
+        context.registerBean("config", Config.class);
+        // 注册后处理器
+        context.registerBean(AtBeanPostProcessor.class);
+        context.registerBean(MapperPostProcessor.class);
+        //初始化容器
+        context.refresh();
+        for (String beanDefinitionName : context.getBeanDefinitionNames()) {
+            System.out.println(beanDefinitionName);
+        }
+        // 容器关闭
+        context.close();
+    }
+```
 
 
 
+**AtBeanPostProcessor后处理器**
+
+```java
+public class MapperPostProcessor implements BeanDefinitionRegistryPostProcessor {
 
 
+    @Override
+    public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry beanFactory) throws BeansException {
 
+        try {
+            PathMatchingResourcePatternResolver pathMatchingResourcePatternResolver = new PathMatchingResourcePatternResolver();
+            Resource[] resources = pathMatchingResourcePatternResolver.getResources("classpath:com/example/springstudy/a05/mapper/**/*.class");
+            // 获取所有的meta元数据
+            CachingMetadataReaderFactory factory = new CachingMetadataReaderFactory();
+            // 获取定义BeanName的Generate
+            AnnotationBeanNameGenerator annotationBeanNameGenerator = new AnnotationBeanNameGenerator();
 
+            for (Resource resource : resources) {
+                // 获取这个资源相关的元数据
+                MetadataReader metadataReader = factory.getMetadataReader(resource);
+                ClassMetadata classMetadata = metadataReader.getClassMetadata();
+                // 判断是否是一个接口
+                if (classMetadata.isInterface()) {
+                    // 只拿到是 MapperFactoryBean 的bean
+                    AbstractBeanDefinition beanDefinition = BeanDefinitionBuilder.genericBeanDefinition(MapperFactoryBean.class)
+                            // 添加构造参数值
+                            .addConstructorArgValue(classMetadata.getClassName())
+                            // 需要sqlSessionFactory 让其根据类型匹配
+                            .setAutowireMode(AbstractBeanDefinition.AUTOWIRE_BY_TYPE)
+                            .getBeanDefinition();
+                    // 单独生成一个nameBeanDefinition 作为生成name 的nameBeanDefinition 使用
+                    AbstractBeanDefinition nameBeanDefinition = BeanDefinitionBuilder.genericBeanDefinition(classMetadata.getClassName()).getBeanDefinition();
+                    // 获取每个mapper 的name
+                    String name = annotationBeanNameGenerator.generateBeanName(nameBeanDefinition, beanFactory);
+                    beanFactory.registerBeanDefinition(name, beanDefinition);
+                }
 
+            }
 
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
+    @Override
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
 
+    }
+}
+```
 
+**输出日志：**
 
+> 可以看到对应@Mapper注解都能扫描到并加入到Bean容器中
+>
+> **Mapper1、Mapper2都被扫到了**
 
-
-
-
-
-
+```java
+23:01:47.208 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'config'
+23:01:47.209 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'bean0001'
+Bean0001：：：我被spring管理了
+23:01:47.210 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'sqlSessionFactoryBean'
+23:01:47.262 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'dataSource'
+23:01:47.284 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Autowiring by type from bean name 'sqlSessionFactoryBean' via factory method to bean named 'dataSource'
+23:01:47.292 [main] DEBUG org.apache.ibatis.logging.LogFactory - Logging initialized using 'class org.apache.ibatis.logging.slf4j.Slf4jImpl' adapter.
+23:01:47.295 [main] DEBUG org.mybatis.spring.SqlSessionFactoryBean - Property 'configuration' or 'configLocation' not specified, using default MyBatis Configuration
+23:01:47.350 [main] DEBUG org.mybatis.spring.SqlSessionFactoryBean - Property 'mapperLocations' was not specified.
+23:01:47.354 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'mapper1'
+23:01:47.430 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'mapper2'
+config
+com.example.springstudy.a05.processor.AtBeanPostProcessor
+com.example.springstudy.a05.processor.MapperPostProcessor
+bean0001
+sqlSessionFactoryBean
+dataSource
+mapper1
+mapper2
+23:01:47.457 [main] DEBUG org.springframework.context.support.GenericApplicationContext - Closing org.springframework.context.support.GenericApplicationContext@e2d56bf, started on Sun Sep 18 23:01:46 CST 2022
+23:01:47.459 [main] INFO com.alibaba.druid.pool.DruidDataSource - {dataSource-0} closing ...
+```
 
 
 
