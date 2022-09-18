@@ -1,18 +1,12 @@
-# Spring学习
+# 1、Spring学习
 
 
 
 1、了解预研究的组件（类）基本使用
 
-
-
 2、用单元测试研究组件的特性
 
-
-
 3、试着自己实现类似功能
-
-
 
 4、最后在深入研究源码
 
@@ -20,11 +14,11 @@
 
 
 
-## 1、容器与Bean
+## 第一节、容器与Bean
 
 #### 1、BeanFactory能做哪些事情
 
-ConfigurationApplicationContext与BeanFactory的关系
+**ConfigurationApplicationContext与BeanFactory的关系**
 
 ![image-20220726210003693](https://tva1.sinaimg.cn/large/e6c9d24egy1h4kmmn6alxj21ww0hkdl6.jpg)
 
@@ -36,11 +30,11 @@ ConfigurationApplicationContext与BeanFactory的关系
  */
 ```
 
-BeanFactory主要的实现类：DefaultListableBeanFactory 
+BeanFactory主要的实现类：**DefaultListableBeanFactory** 
 
 ![image-20220726210826488](https://tva1.sinaimg.cn/large/e6c9d24egy1h4kmv8zurej21f90u0jy6.jpg)
 
-单例Bean注册类 DefaultListableBeanFactory 
+单例Bean注册类 **DefaultListableBeanFactory** 
 
 ```java
 // private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
@@ -108,7 +102,7 @@ System.out.println(configurableApplicationContext.getMessage("Hi", null, Locale.
 
 
 
-获取各种环境变量
+**获取各种环境变量**
 
 ```java
 System.out.println(configurableApplicationContext.getEnvironment().getProperty("java_home"));
@@ -162,7 +156,7 @@ public class Component2 {
 
 
 
-## 2、容器的实现
+## 第二节、容器的实现
 
 #### 1、BeanFactory实现的特点
 
@@ -192,7 +186,6 @@ public class A02Application {
         }
         System.out.println(classPathXmlApplicationContext.getBean(Bean2.class).getBean1());
     }
-
 
     static class Bean1 {
         public Bean1() {
@@ -239,7 +232,7 @@ public class A02Application {
         <property name="bean1" ref="bean1"/>
     </bean>
 
-    <!--    加载默认的配置后处理器-->
+    <!--加载默认的配置后处理器-->
     <context:annotation-config/>
 
 </beans>
@@ -279,7 +272,6 @@ public class A02Application {
     public static void main(String[] args) {
         testFileSystemXmlApplicationContext();
     }
-
 
     // 基于磁盘路径下的xml 配置文件来创建bean
     private static void testFileSystemXmlApplicationContext() {
@@ -416,9 +408,7 @@ org.springframework.context.event.internalEventListenerFactory
 public class A02Application {
 
     public static void main(String[] args) {
-
      testAnnotationConfigApplicationContext();
-
     }
 
     // 较为经典的容器 基于Java 配置类来创建
@@ -430,7 +420,6 @@ public class A02Application {
         }
         System.out.println(annotationConfigWebApplicationContext.getBean(Bean2.class).getBean1());
     }
-
 
 
     @Configuration
@@ -505,9 +494,9 @@ com.example.springstudy.application.context.A02Application$Bean1@3967e60c
 
 
 
-##### 4、基于java配置类来创建，用于web环境
+##### 4、基于java配置类来创建（Web）
 
-> **内嵌Tomcat的使用**
+> **用于web环境，内嵌Tomcat的使用**
 
 ```java
 
@@ -516,8 +505,6 @@ public class A02Application {
     public static void main(String[] args) {
         testAnnotationConfigServletWebServerApplicationContext();
     }
-
- 
 
     // 较为经典的容器 基于java配置类来创建，用于web环境
     private static void testAnnotationConfigServletWebServerApplicationContext() {
@@ -557,7 +544,6 @@ public class A02Application {
             };
         }
     }
-
 
 
 
@@ -617,7 +603,629 @@ dispatcherServletRegistrationBean
 
 
 
-#### 3、内嵌容器、注册DispatcherServlet
+## 第三节、内嵌容器、注册DispatcherServlet
+
+### 1、Bean的生命周期
+
+**Application启动类需要关闭**
+
+```java
+@SpringBootApplication
+public class SpringStudyApplication {
+
+    public static void main(String[] args) throws Exception {
+        ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(SpringStudyApplication.class, args);
+				// 方便演示
+        configurableApplicationContext.close();
+    }
+```
+
+**创建一个基础Compnent**
+
+```java
+@Component
+public class LifeCycleBean {
+
+    public LifeCycleBean() {
+        System.out.println("我是构造方法");
+    }
+
+    @Autowired
+    public void autowired(@Value("${JAVA_HOME}") String home){
+        System.out.println("我是依赖注入方法："+home);
+    }
+
+    @PostConstruct
+    public void init(){
+        System.out.println("我是初始化");
+    }
+    /**
+     * desc:不同的scop的销毁方法不一样
+     */
+    @PreDestroy
+    public void destroy(){
+        System.out.println("我是销毁方法");
+    }
+}
+
+```
+
+
+
+**实现Bean的几个后置处理器 ，查看生命周期**
+
+```java
+@Component
+public class MyBeanPostProcessor implements InstantiationAwareBeanPostProcessor, DestructionAwareBeanPostProcessor {
+    /*
+     * 学到了什么？？
+     * a、SpringBean生命周期各个阶段
+     * b、模板设计模式、大流程固定好了，通过接口回调(bean 后处理器)扩展
+     */
+  
+    @Override
+    public void postProcessBeforeDestruction(Object bean, String beanName) throws BeansException {
+        if ("lifeCycleBean".equals(beanName)){
+            System.out.println("---- 销毁之前执行，如@preDestory");
+        }
+    }
+
+    @Override
+    public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
+        if ("lifeCycleBean".equals(beanName)){
+            System.out.println("---- 实例化之前执行，这里返回的对象会替换掉原本的bean");
+        }
+        return  null;
+//        return InstantiationAwareBeanPostProcessor.super.postProcessBeforeInstantiation(beanClass, beanName);
+    }
+
+    @Override
+    public boolean postProcessAfterInstantiation(Object bean, String beanName) throws BeansException {
+        if ("lifeCycleBean".equals(beanName)){
+            System.out.println("---- 实例化之后执行，这里如果返回false 会跳过依赖注入阶段");
+        }
+        return  true;
+//        return InstantiationAwareBeanPostProcessor.super.postProcessAfterInstantiation(bean, beanName);
+    }
+
+    @Override
+    public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) throws BeansException {
+        if ("lifeCycleBean".equals(beanName)){
+            System.out.println("---- 依赖注入阶段，例如 @Autowired @Resource @value");
+        }
+        return InstantiationAwareBeanPostProcessor.super.postProcessProperties(pvs, bean, beanName);
+    }
+
+
+    @Override
+    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+        if ("lifeCycleBean".equals(beanName)){
+            System.out.println("---- 初始化之前执行，这里返回的对象会替换到原本的bean 如PostConstruct  @ConfigRationProperties");
+        }
+        return InstantiationAwareBeanPostProcessor.super.postProcessBeforeInitialization(bean, beanName);
+    }
+
+    @Override
+    public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+        if ("lifeCycleBean".equals(beanName)){
+            System.out.println("---- 初始化之后执行，这里返回的对象会替换到原本的bean 如代理增强");
+        }
+        return InstantiationAwareBeanPostProcessor.super.postProcessAfterInitialization(bean, beanName);
+    }
+}
+```
+
+
+
+**日志打印-查看执行顺序：**
+
+```
+---- 实例化之前执行，这里返回的对象会替换掉原本的bean
+我是构造方法
+---- 实例化之后执行，这里如果返回false 会跳过依赖注入阶段
+---- 依赖注入阶段，例如 @Autowired @Resource @value
+我是依赖注入方法：/usr/Hack
+---- 初始化之前执行，这里返回的对象会替换到原本的bean 如PostConstruct  @ConfigRationProperties
+我是初始化
+---- 初始化之后执行，这里返回的对象会替换到原本的bean 如代理增强
+---- 销毁之前执行，如@preDestory
+我是销毁方法
+```
+
+
+
+### 2、模板方法-- 设计模式学习
+
+```java
+public class TestMethodTemplate {
+
+    public static void main(String[] args) {
+        MyBeanFactory myBeanFactory = new MyBeanFactory();
+        myBeanFactory.addBeanPostProcessor(() -> System.out.println("Autowired"));
+        myBeanFactory.addBeanPostProcessor(() -> System.out.println("Resource"));
+        myBeanFactory.getBean();
+    }
+
+    /**
+     * desc:所以该动的就动 需要静态的就是静态的
+     */
+    static class MyBeanFactory {
+
+        public Object getBean() {
+            Object bean = new Object();
+            System.out.println("构造方法：" + bean);
+            // 如果要注入 Autowired 、Resource 等方法 需要变灵活
+            System.out.println("依赖注入：" + bean);
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+                beanPostProcessor.inject();
+            }
+            System.out.println("初始化：" + bean);
+            return bean;
+        }
+
+        private final List<BeanPostProcessor> beanPostProcessorList = new ArrayList<>();
+        void addBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
+            beanPostProcessorList.add(beanPostProcessor);
+        }
+    }
+
+    interface BeanPostProcessor {
+        /**
+         * 对依赖注入阶段的扩展
+         * 或者对其他的方式的进行扩展
+         */
+        void inject();
+    }
+
+
+}
+```
+
+
+
+*学到了什么：*
+
+```java
+/*
+ * 学到了什么？？
+ * a、SpringBean生命周期各个阶段
+ * b、模板设计模式、大流程固定好了，通过接口回调(bean 后处理器)扩展
+ */
+```
+
+
+
+### 3、Bean的后置处理器
+
+###### **1、bean的后置处理器的作用**
+
+>  **为Bean的生命周期各个阶段提供扩展**
+>
+>  *手动hardcore加入到BeanFactory中*
+
+```java
+public class A04Application {
+
+    public static void main(String[] args) {
+
+        // GenericApplicationContext 是一个干净的容器
+        GenericApplicationContext context = new GenericApplicationContext();
+
+        context.registerBean("bean001", Bean001.class);
+        context.registerBean("bean002", Bean002.class);
+        context.registerBean("bean003", Bean003.class);
+        context.registerBean("bean004", Bean004.class);
+
+        // 处理ConfigurationProperties 的注解
+        context.getDefaultListableBeanFactory().setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
+        // 增加Autowired 注解的后置处理器 解析Autowired Value
+        context.registerBean(AutowiredAnnotationBeanPostProcessor.class);
+        // 增加Resource 后置处理器  并且能处理 init方法和destroy方法
+        context.registerBean(CommonAnnotationBeanPostProcessor.class);
+
+        ConfigurationPropertiesBindingPostProcessor.register(context.getDefaultListableBeanFactory());
+        // 初始化容器
+        context.refresh();
+        System.out.println("configurationProperties：" + context.getBean(Bean004.class));
+        context.close();
+
+    }
+}
+```
+
+
+
+###### **2. @Autowired后置处理器的分析**
+
+***使用AutowiredAnnotationBeanPostProcessor 解析@Autowired***
+
+```java
+public class DigInAutowired {
+    public static void main(String[] args) throws Throwable {
+
+        DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
+        // 创建过程 依赖注入 初始化
+        beanFactory.registerSingleton("bean003", new Bean003());
+        beanFactory.registerSingleton("bean002", new Bean002());
+
+        // 解析Value
+        beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
+        // 解析$ 符号
+        beanFactory.addEmbeddedValueResolver(new StandardEnvironment()::resolvePlaceholders);
+
+        // 1、查找哪些属性，方法加了@Autowired 这称之为 InjectionMetadata
+        AutowiredAnnotationBeanPostProcessor processor = new AutowiredAnnotationBeanPostProcessor();
+        // 需要接续对应的bean 需要在beanFactory里面找到bean
+        processor.setBeanFactory(beanFactory);
+
+        Bean003 bean003 = new Bean003();
+        System.out.println("processor解析前：" + bean003);
+
+        // 执行依赖注入 @Autowired @Value
+        processor.postProcessProperties(null, bean003, "bean003");
+        System.out.println("processor执行解析后：" + bean003);
+
+    }
+}
+```
+
+> 查看源码，知道AutowiredAnnotationBeanPostProcessor 调用**findAutowiringMetadata**去解析@Autowired
+
+```java
+@Override
+public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
+   InjectionMetadata metadata = findAutowiringMetadata(beanName, bean.getClass(), pvs);
+   try {
+      metadata.inject(bean, beanName, pvs);
+   }
+   catch (BeanCreationException ex) {
+      throw ex;
+   }
+   catch (Throwable ex) {
+      throw new BeanCreationException(beanName, "Injection of autowired dependencies failed", ex);
+   }
+   return pvs;
+}
+```
+
+**使用反射的操作去模拟继续AutowiredAnnotationBeanPostProcessor** 
+
+```java
+public class DigInAutowired {
+    public static void main(String[] args) throws Throwable {
+
+        DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
+        // 创建过程 依赖注入 初始化
+        beanFactory.registerSingleton("bean003", new Bean003());
+        beanFactory.registerSingleton("bean002", new Bean002());
+
+        // 解析Value
+        beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
+        // 解析$ 符号
+        beanFactory.addEmbeddedValueResolver(new StandardEnvironment()::resolvePlaceholders);
+
+        // 1、查找哪些属性，方法加了@Autowired 这称之为 InjectionMetadata
+        AutowiredAnnotationBeanPostProcessor processor = new AutowiredAnnotationBeanPostProcessor();
+        // 需要接续对应的bean 需要在beanFactory里面找到bean
+        processor.setBeanFactory(beanFactory);
+
+        Bean003 bean003 = new Bean003();
+        System.out.println("processor解析前：" + bean003);
+
+        Method findAutowiringMetadata = AutowiredAnnotationBeanPostProcessor.class.getDeclaredMethod("findAutowiringMetadata", String.class, Class.class, PropertyValues.class);
+        // 私有的 设置可以访问
+        findAutowiringMetadata.setAccessible(true);
+        // 获取Bean003 上的 加了@value 和@Autowired 的成员变量和方法
+        InjectionMetadata metadata = (InjectionMetadata) findAutowiringMetadata.invoke(processor, "bean003", Bean003.class, null);
+        System.out.println("metadata: " + metadata);
+
+        // 调用InjectionMetadata 进行依赖注入 注入时根据类型查找值
+        metadata.inject(bean003, "bean003", null);
+        System.out.println("metadata解析后：" + bean003);
+
+    }
+}
+```
+
+> **可以看到 `InjectionMetadata` 拿到了测试类中所有使用@Autowired注解的变量和方法**
+
+![image-20220811225034177](https://tva1.sinaimg.cn/large/e6c9d24egy1h537qj7pcpj21a60ayjup.jpg)
+
+
+
+**使用DependencyDescriptor的操作去加载bean** 
+
+> 通过**获取成员变量、方法、@value 值注入**等引用 获取对应的Bean
+
+```java
+public class DigInAutowired {
+    public static void main(String[] args) throws Throwable {
+
+        DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
+        // 创建过程 依赖注入 初始化
+        beanFactory.registerSingleton("bean003", new Bean003());
+        beanFactory.registerSingleton("bean002", new Bean002());
+
+        // 解析Value
+        beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
+        // 解析$ 符号
+        beanFactory.addEmbeddedValueResolver(new StandardEnvironment()::resolvePlaceholders);
+
+        // 1、查找哪些属性，方法加了@Autowired 这称之为 InjectionMetadata
+        AutowiredAnnotationBeanPostProcessor processor = new AutowiredAnnotationBeanPostProcessor();
+        // 需要接续对应的bean 需要在beanFactory里面找到bean
+        processor.setBeanFactory(beanFactory);
+
+        Bean003 bean003 = new Bean003();
+        System.out.println("processor解析前：" + bean003);
+
+        // 执行依赖注入 @Autowired @Value
+        processor.postProcessProperties(null, bean003, "bean003");
+        System.out.println("processor执行解析后：" + bean003);
+
+        // 3、如何按照类型查找
+        // 找到成员变量 找到类型的Bean
+        Field bean001 = Bean003.class.getDeclaredField("bean001");
+        DependencyDescriptor dependencyDescriptor = new DependencyDescriptor(bean001, false);
+        Object o = beanFactory.doResolveDependency(dependencyDescriptor, null, null, null);
+        System.out.println("找到bean001：：："+o);
+
+        //  方法参数 根据方法参数
+        Method setBean002 = Bean003.class.getDeclaredMethod("setBean002", Bean002.class);
+        DependencyDescriptor dependencyDescriptor1 = new DependencyDescriptor(new MethodParameter(setBean002, 0),false);
+        Object o1 = beanFactory.doResolveDependency(dependencyDescriptor1, null, null, null);
+        System.out.println("找到bean002：：："+o1);
+
+        // 值注入
+        Method setPort = Bean003.class.getMethod("setPort", String.class);
+        DependencyDescriptor dependencyDescriptor2 = new DependencyDescriptor(new MethodParameter(setPort, 0),true);
+        Object o2 = beanFactory.doResolveDependency(dependencyDescriptor2, null, null, null);
+        System.out.println("找到setPort：：："+o2);
+    }
+}
+```
+
+
+
+## 第四节、常见的工厂后置处理器
+
+### 1、**ConfigurationClassPostProcessor** 后处理器
+
+> ```java
+> // 解析Component注解、ComponentScan 注解，以及Bean、Import、ImportResource
+> context.registerBean(ConfigurationClassPostProcessor.class);
+> ```
+
+### 2、**MapperScanConfigurer** 后处理器
+
+> ```java
+> // 解析对应的Mapper 文件 MapperScan
+> context.registerBean(MapperScannerConfigurer.class, bd -> bd.getPropertyValues().add("basePackage", "com.example.springstudy.a05.mapper"));
+> ```
+
+**Main 方法演示**
+
+```java
+public class A05Application {
+    public static void main(String[] args) {
+        GenericApplicationContext context = new GenericApplicationContext();
+        context.registerBean("config", Config.class);
+        // 解析Component注解、ComponentScan 注解，以及Bean、Import、ImportResource
+        context.registerBean(ConfigurationClassPostProcessor.class);
+        // 解析对应的Mapper 文件 MapperScan
+        context.registerBean(MapperScannerConfigurer.class, bd -> bd.getPropertyValues().add("basePackage", "com.example.springstudy.a05.mapper"));
+        //初始化容器
+        context.refresh();
+        for (String beanDefinitionName : context.getBeanDefinitionNames()) {
+            System.out.println(beanDefinitionName);
+        }
+        // 容器关闭
+        context.close();
+
+    }
+}
+```
+
+**Config配置类**
+
+```java
+@Configuration
+@ComponentScan("com.example.springstudy.a05.component")
+public class Config {
+
+    @Bean
+    public Bean0001 bean0001() {
+        return new Bean0001();
+    }
+
+    @Bean
+    public SqlSessionFactoryBean sqlSessionFactoryBean(DataSource dataSource) {
+        SqlSessionFactoryBean sqlSessionFactoryBean = new SqlSessionFactoryBean();
+        sqlSessionFactoryBean.setDataSource(dataSource);
+        return sqlSessionFactoryBean;
+    }
+
+    @Bean(initMethod = "init")
+    public DruidDataSource dataSource() {
+        DruidDataSource druidDataSource = new DruidDataSource();
+        druidDataSource.setUrl("jdbc:mysql://rm-pz5zbekd25iidlso733150.mysql.rds.aliyuncs.com:3306/test_core");
+        druidDataSource.setUsername("");
+        druidDataSource.setPassword("=");
+        return druidDataSource;
+    }
+
+}
+```
+
+**输出结果，对应的bean都已经放到bean工厂里面**
+
+```java
+config
+org.springframework.context.annotation.ConfigurationClassPostProcessor
+org.mybatis.spring.mapper.MapperScannerConfigurer
+bean0002
+bean0001
+sqlSessionFactoryBean
+dataSource
+mapper1
+mapper2
+```
+
+
+
+## 第五节、工厂后处理器模拟实现
+
+> *主要用代码来模拟Spring去实现对应的注解的PostProcessor*
+
+### 1、ComponentScan注解详解
+
+> 找到对应的扫描路径，类似如下：
+>
+> ```java
+> @ComponentScan("com.example.springstudy.a05.component")
+> ```
+>
+> **根据路径查找**，然后找到对应的class文件，逐一扫描处理，加入到BeanFactory中
+>
+> **如果是Spring，应该是扫描指定包路径下，或者默认扫整个包下的Component**
+
+**main方法执行：**
+
+```java
+public static void main(String[] args) throws IOException {
+
+        GenericApplicationContext context = new GenericApplicationContext();
+        context.registerBean("config", Config.class);
+        // 注册后处理器
+        context.registerBean(OptimizeComponentScanPostProcessor.class);
+        //初始化容器
+        context.refresh();
+        for (String beanDefinitionName : context.getBeanDefinitionNames()) {
+            System.out.println(beanDefinitionName);
+        }
+        // 容器关闭
+        context.close();
+    }
+```
+
+
+
+**OptimizeComponentScanPostProcessor后处理器**
+
+```java
+public class OptimizeComponentScanPostProcessor implements BeanDefinitionRegistryPostProcessor {
+
+    @Override
+    public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry beanFactory) throws BeansException {
+
+        try {
+            // 扫描有没有这个注解 TODO 目前是扫描Config类下ComponentScan扫描路径
+            ComponentScan annotation = AnnotationUtils.findAnnotation(Config.class, ComponentScan.class);
+            if (annotation != null) {
+                for (String pack : annotation.basePackages()) {
+                    System.out.println("有ComponentScan注解的包名：" + pack);
+                    // com.example.springstudy.a05.component -> classpath*:com/example/springstudy/a05/component/**/*.class
+                    String path = "classpath*:" + pack.replace(".", "/") + "/**/*.class";
+                    // 读取类的元信息的
+                    CachingMetadataReaderFactory cachingMetadataReaderFactory = new CachingMetadataReaderFactory();
+                    // 根据路径名获取对应的Class
+                    //  Resource[] resources = context.getResources(path);
+                    Resource[] resources = new PathMatchingResourcePatternResolver().getResources(path);
+                    //  AnnotationBeanNameGenerator 生成名字的Annotation
+                    AnnotationBeanNameGenerator annotationBeanNameGenerator = new AnnotationBeanNameGenerator();
+                    for (Resource resource : resources) {
+                        // 根据resource获取整个元数据
+                        MetadataReader metadataReader = cachingMetadataReaderFactory.getMetadataReader(resource);
+                        System.out.println("类名称信息：：" + metadataReader.getClassMetadata().getClassName());
+                        AnnotationMetadata annotationMetadata = metadataReader.getAnnotationMetadata();
+                        System.out.println("是否含有Component注解信息：：" + annotationMetadata.hasAnnotation(Component.class.getName()));
+                        // Controller 就属于Component的派生注解
+                        System.out.println("是否含有Component 派生注解信息：：" + annotationMetadata.hasMetaAnnotation(Component.class.getName()));
+
+                        if (annotationMetadata.hasMetaAnnotation(Component.class.getName()) || annotationMetadata.hasAnnotation(Component.class.getName())) {
+                            // 根据class名字生成一个AbstractBeanDefinition
+                            AbstractBeanDefinition beanDefinition = BeanDefinitionBuilder.genericBeanDefinition(annotationMetadata.getClassName()).getBeanDefinition();
+                            // 生成一个bean名字
+                            String name = annotationBeanNameGenerator.generateBeanName(beanDefinition, beanFactory);
+                            beanFactory.registerBeanDefinition(name, beanDefinition);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+
+    }
+}
+
+
+```
+
+**输出日志：**
+
+> 可以看到ComponentScan的路径下的class文件都能扫描到并加入到Bean容器中
+
+```java
+有ComponentScan注解的包名：com.example.springstudy.a05.component
+类名称信息：：com.example.springstudy.a05.component.Bean0002
+是否含有Component注解信息：：true
+是否含有Component 派生注解信息：：false
+类名称信息：：com.example.springstudy.a05.component.Bean0003
+是否含有Component注解信息：：true
+是否含有Component 派生注解信息：：false
+类名称信息：：com.example.springstudy.a05.component.Bean0004
+是否含有Component注解信息：：false
+是否含有Component 派生注解信息：：true
+22:08:05.079 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'config'
+22:08:05.079 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'bean0002'
+Bean0002：：：我被spring管理了
+22:08:05.080 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'bean0003'
+Bean0002：：：我被spring管理了
+22:08:05.080 [main] DEBUG org.springframework.beans.factory.support.DefaultListableBeanFactory - Creating shared instance of singleton bean 'bean0004'
+Bean0002：：：我被spring管理了
+config
+com.example.springstudy.a05.processor.OptimizeComponentScanPostProcessor
+bean0002
+bean0003
+bean0004
+```
+
+
+
+### 2、Bean注解详解
+
+
+
+
+
+
+
+### 3、Mapper注解详解
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -635,25 +1243,31 @@ find all structure command+ F12
 
 
 
+ctrl+alt+v 抽取var
 
-
-## 2、AOP
-
-
-
-
-
-## 3、Web MVC
+Ctrl+alt +t  生成trycatch if 等等等
 
 
 
 
 
-## 4、Spring Boot
+# 2、AOP
 
 
 
 
 
-## 5、其他
+# 3、Web MVC
+
+
+
+
+
+# 4、Spring Boot
+
+
+
+
+
+# 5、其他
 
