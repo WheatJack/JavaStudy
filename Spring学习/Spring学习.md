@@ -1399,6 +1399,41 @@ mapper2
 
 
 
+## 第六节、Aware与initialzingBean接口
+
+Aware接口用于注入一些与容器相关的信息，例如
+
+1. BeanNameAware 注入bean 的名字
+2. BeanFactoryAware注入BeanFactory容器
+3. ApplicationContextAware 注入 ApplicationContext容器
+4. EmbeddedValueAware ${}
+
+
+
+
+
+**配置类@Autowired失效分析**
+
+![image-20220921225808964](https://tva1.sinaimg.cn/large/e6c9d24egy1h6emd0rudvj20qb0cc755.jpg)
+
+
+
+Java配置类包含BeanFactoryPostProcessor的情况，因此要创建其中的BeanFactoryPostProcessor 必须提前创建Java配置类，而此时的BeanPostProcessor还未准备好，导致@Autowired 等注解失效
+
+![image-20220921230034493](https://tva1.sinaimg.cn/large/e6c9d24egy1h6emfhd4l8j20pi0bzjsc.jpg)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 Go to implentation ctrl +alb +b
