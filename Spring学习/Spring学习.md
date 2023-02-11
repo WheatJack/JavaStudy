@@ -1414,49 +1414,840 @@ Aware接口用于注入一些与容器相关的信息，例如
 
 **配置类@Autowired失效分析**
 
-![image-20220921225808964](https://tva1.sinaimg.cn/large/e6c9d24egy1h6emd0rudvj20qb0cc755.jpg)
+![valf10](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/valf10.png)
 
 
 
 Java配置类包含BeanFactoryPostProcessor的情况，因此要创建其中的BeanFactoryPostProcessor 必须提前创建Java配置类，而此时的BeanPostProcessor还未准备好，导致@Autowired 等注解失效
 
-![image-20220921230034493](https://tva1.sinaimg.cn/large/e6c9d24egy1h6emfhd4l8j20pi0bzjsc.jpg)
+
+
+失败原因解释，因为新创建了Java配置类，先创建了配置，然后执行了初始化，然后在去执行后处理器，导致配置类里面的
+
+![image-20230206210603872](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/owq9ly.png)
 
 
 
 
 
+## 第七讲、初始化与销毁
+
+
+
+### 初始化执行顺序
+
+>  * <p> ˙
+>      * 执行顺序：
+>      * 1、PostConstruct
+>      * 2、InitializingBean
+>      * 3、@Bean(initMethod ="")
+>      * <p>
+
+```java
+@SpringBootApplication
+public class A07Application {
+
+    public static void main(String[] args) throws Exception {
+        ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(A07Application.class, args);
+        configurableApplicationContext.close();
+        /*
+        学到了什么??
+        a. spring 提供了多种初始化和销毁方法
+        b. spring的面试有多卷
+         */
+
+    }
+
+    /**
+     * <p> ˙
+     * 执行顺序：
+     * 1、PostConstruct
+     * 2、InitializingBean
+     * 3、@Bean(initMethod ="")
+     * <p>
+     * @author JackGao
+     * @since 2023/2/6 21:39
+     */
+    @Bean(initMethod = "init3")
+    public Bean0007 bean0007(){
+        return new Bean0007();
+    }
+
+}
+
+```
+
+Bean
+
+```java
+public class Bean0007 implements InitializingBean {
+
+    /**
+     * <p> 初始化方法1 <p>
+     *
+     * @author JackGao
+     * @since 2023/2/6 21:37
+     */
+    @PostConstruct
+    public void init1() throws Exception {
+        System.out.println("Bean0007----初始化方法1--init1");
+    }
+
+    /**
+     * <p> 初始化方法2 <p>
+     *
+     * @author JackGao
+     * @since 2023/2/6 21:36
+     */
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        System.out.println("Bean0007----初始化方法2--afterPropertiesSet");
+    }
+
+    public void init3() {
+        System.out.println("Bean0007----初始化方法3--init3");
+    }
+
+}
+
+```
+
+输出日志
+
+```java
+// Bean0007----初始化方法1--init1
+// Bean0007----初始化方法2--afterPropertiesSet
+// Bean0007----初始化方法3--init3
+```
+
+
+
+### 销毁执行顺序
+
+> ```
+> * <p> ˙
+> * 销毁执行顺序：
+> * 1、PreDestroy
+> * 2、DisposableBean
+> * 3、@Bean(destroyMethod ="")
+> * <p>
+> ```
+
+```java
+@SpringBootApplication
+public class A07Application {
+
+    public static void main(String[] args) throws Exception {
+        ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(A07Application.class, args);
+        configurableApplicationContext.close();
+    }
+
+    /**
+     * <p> ˙
+     * 销毁执行顺序：
+     * 1、PreDestroy
+     * 2、DisposableBean
+     * 3、@Bean(destroyMethod ="")
+     * <p>
+     * @author JackGao
+     * @since 2023/2/6 21:39
+     */
+    @Bean(destroyMethod = "destroy3")
+    public Bean0008 bean0008(){
+        return new Bean0008();
+    }
+
+}
+
+```
+
+Bean
+
+```java
+public class Bean0008 implements DisposableBean {
+
+
+    /**
+     * <p> 销毁方法 <p>
+     *
+     * @author JackGao
+     * @since 2023/2/6 21:36
+     */
+    @PreDestroy
+    public void destroy1() throws Exception {
+        System.out.println("Bean0008----销毁方法--destroy1");
+    }
+    /**
+     * <p> 销毁方法2 <p>
+     *
+     * @author JackGao
+     * @since 2023/2/6 21:37
+     */
+    @Override
+    public void destroy() throws Exception {
+        System.out.println("Bean0008----销毁方法--destroy2");
+    }
+
+
+    public void destroy3(){
+        System.out.println("Bean0008----销毁方法--destroy3");
+    }
+}
+
+```
+
+
+
+输入日志
+
+```java
+// Bean0008----销毁方法--destroy1
+// Bean0008----销毁方法--destroy2
+// Bean0008----销毁方法--destroy3
+```
 
 
 
 
 
+## 第八讲、Scope
+
+### 1、Scope类型有哪些？
+
+| 类型                                    | 创建时机   | 销毁时机                         |
+| --------------------------------------- | ---------- | -------------------------------- |
+| Singleton（同一个对象）                 | 引用的时候 | Tomcat 关机                      |
+| prototype（从spring容器中，产生新对象） | 引用的时候 | TODO                             |
+| request（存在request域中）              | 每一次请求 | 每一次请求完成                   |
+| session（会话级别）                     | 浏览器请求 | 30分钟没有新请求 自动销毁        |
+| application（应用启动）                 | 应用启动   | 应该是应用关闭 emmm 但是实现不了 |
+
+####  
+
+#### 1.1 scope的销毁演示
 
 
 
+演示：
+
+```java
+@RestController
+public class MyController {
+
+    /**
+     * 单例使用其他域 都需要加scope
+     */
+    @Lazy
+    @Autowired
+    BeanForRequest beanForRequest;
+
+    @Lazy
+    @Autowired
+    BeanForApplication beanForApplication;
+
+    @Lazy
+    @Autowired
+    BeanForSession beanForSession;
+
+    @GetMapping(value = "test", produces = "text/html")
+    public String test(HttpServletRequest request, HttpSession httpSession) {
+        ServletContext servletContext = request.getServletContext();
+        String sb = "<li>" + "beanForRequest:" + beanForRequest + "</li>" + "<li>" + "beanForApplication:" + beanForApplication + "</li>" + "<li>" + "beanForSession:" + beanForSession + "</li>";
+        return sb;
+    }
+
+}
+////////////////////////////////////////////////////////////////
+
+@Scope("request")
+@Component
+public class BeanForRequest {
+
+    @PreDestroy
+    public void destroy(){
+        System.out.println("BeanForRequest------destroy");
+    }
+}
+////////////////////////////////////////////////////////////////
+@Scope("application")
+@Component
+public class BeanForApplication {
+
+    @PreDestroy
+    public void destroy(){
+        System.out.println("BeanForApplication------destroy");
+    }
+}
+////////////////////////////////////////////////////////////////
+@Scope("session")
+@Component
+public class BeanForSession {
+
+    @PreDestroy
+    public void destroy(){
+        System.out.println("BeanForSession------destroy");
+    }
+}
+
+```
+
+结果：
+
+当使用浏览器调用接口的时候：
+
+一次请求后，request的bean就销毁了（销毁方法已经执行）
+
+> ```java
+> // BeanForRequest------destroy
+> ```
+
+页面展示打印如下：
+
+![image-20230211174324621](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230211174324621.png)
+
+再次刷新:
+
+> 发现只有request域的bean发现变化
+
+![image-20230211174409658](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230211174409658.png)
 
 
-Go to implentation ctrl +alb +b
 
-File Structure command +F12
+### 2、在singleton 中使用其他集中scope的注意事项
 
-Jump  to Source F4
+> singleton使用其他的scope的时候 需要是用**@Lazy注解** 否则会失效
 
-find all structure command+ F12
+演示：
+
+使用单例对象获取多例的对象
+
+```java
+@SpringBootApplication
+@EnableConfigurationProperties
+@ConfigurationPropertiesScan
+public class A09Application {
+    public static void main(String[] args) throws Exception {
+        ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(A09Application.class, args);
+
+        E bean = configurableApplicationContext.getBean(E.class);
+        bean.getF();
+        System.out.println("打印日志了1，"+bean.getF());
+        System.out.println("打印日志了2，"+bean.getF());
+        System.out.println("打印日志了3，"+bean.getF());
+        System.out.println("打印日志了4，"+bean.getF());
+
+        configurableApplicationContext.close();
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+@Component
+public class E {
+    @Autowired
+    private F f;
+
+    public F getF() {
+        return f;
+    }
+
+}
+////////////////////////////////////////////////////////////////////////////////////
+@Component
+@Scope("prototype")
+public class F {
+}
+
+```
+
+**预期效果：打印不同的对象**
+
+**结果输入：**
+
+```
+打印日志了1，com.example.springstudy.a009.F@7c251f90
+打印日志了2，com.example.springstudy.a009.F@7c251f90
+打印日志了3，com.example.springstudy.a009.F@7c251f90
+打印日志了4，com.example.springstudy.a009.F@7c251f90
+```
+
+**发现结果不是我们预期生成多个对象**
 
 
 
-ctrl+alt+v 抽取var
+#### 2.1 实战：scope失效分析
 
-Ctrl+alt +t  生成trycatch if 等等等
+***为什么失效？***
+
+对于单例对象来讲，依赖注入仅发生了一次，后续没有用到多例的F，因此E用的始终是第一次依赖注入的F
+
+![image-20230209221900444](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/image-20230209221900444.png)
+
+***解决办法：***
+
+1. **仍然使用@Lazy代理**
+
+![image-20230209222303730](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230209222303730.png)
+
+演示：
+
+```java
+@Component
+public class E {
+    @Autowired
+    @Lazy
+    private F f;
+
+    public F getF() {
+        return f;
+    }
+
+}
+
+@SpringBootApplication
+@EnableConfigurationProperties
+@ConfigurationPropertiesScan
+public class A09Application {
+    public static void main(String[] args) throws Exception {
+        ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(A09Application.class, args);
+
+        E bean = configurableApplicationContext.getBean(E.class);
+        System.out.println("看这个来源，是原始类还是代理类:" + bean.getF().getClass());
+        System.out.println("打印日志了1，" + bean.getF());
+        System.out.println("打印日志了2，" + bean.getF());
+        System.out.println("打印日志了3，" + bean.getF());
+
+        configurableApplicationContext.close();
+    }
+}
+```
+
+**结果输出：**
+
+```java
+看这个来源，是原始类还是代理类:class com.example.springstudy.a009.F$$EnhancerBySpringCGLIB$$aa6956a
+打印日志了1，com.example.springstudy.a009.F@59ed3e6c
+打印日志了2，com.example.springstudy.a009.F@317e9c3c
+打印日志了3，com.example.springstudy.a009.F@31a3f4de
+```
 
 
+
+2. **代理对象虽然还是同一个，但当每次使用代理对象的任意方法时，由代理创建新的f对象**
+
+   > ``` java
+   > @Scope(value = "prototype",proxyMode = ScopedProxyMode.TARGET_CLASS)
+   > ```
+
+演示：
+
+```java
+@Component
+@Scope(value = "prototype",proxyMode = ScopedProxyMode.TARGET_CLASS)
+public class F1 {
+}
+
+@Component
+public class E {
+    @Lazy
+    @Autowired
+    private F f;
+    @Autowired
+    private F1 f1;
+
+    public F getF() {
+        return f;
+    }
+
+    public F1 getF1() {
+        return f1;
+    }
+}
+
+
+@SpringBootApplication
+@EnableConfigurationProperties
+@ConfigurationPropertiesScan
+public class A09Application {
+    public static void main(String[] args) throws Exception {
+        ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(A09Application.class, args);
+
+        E bean = configurableApplicationContext.getBean(E.class);
+        System.out.println("看这个来源，是原始类还是代理类:" + bean.getF().getClass());
+        System.out.println("打印日志了1，" + bean.getF());
+        System.out.println("打印日志了2，" + bean.getF());
+        System.out.println("打印日志了3，" + bean.getF());
+
+        System.out.println("getF1-看这个来源，是原始类还是代理类:" + bean.getF1().getClass());
+        System.out.println("getF1-打印日志了1，" + bean.getF1());
+        System.out.println("getF1-打印日志了2，" + bean.getF1());
+        System.out.println("getF1-打印日志了3，" + bean.getF1());
+
+        configurableApplicationContext.close();
+    }
+}
+```
+
+**结果输出：**
+
+```
+getF1-看这个来源，是原始类还是代理类:class com.example.springstudy.a009.F1$$EnhancerBySpringCGLIB$$57e89078
+getF1-打印日志了1，com.example.springstudy.a009.F1@124ac145
+getF1-打印日志了2，com.example.springstudy.a009.F1@2def7a7a
+getF1-打印日志了3，com.example.springstudy.a009.F1@24e83d19
+```
+
+
+
+3. **使用ObjectFactory工厂解决**
+
+   > ```java
+   > @Autowired
+   > private ObjectFactory<F3> f3;
+   > ```
+
+演示：
+
+```java
+@Component
+@Scope(value = "prototype")
+public class F3 {
+}
+
+@Component
+public class E {
+
+    @Autowired
+    private ObjectFactory<F3> f3;
+
+    public F3 getF3() {
+        return f3.getObject();
+    }
+}
+
+@SpringBootApplication
+@EnableConfigurationProperties
+@ConfigurationPropertiesScan
+public class A09Application {
+    public static void main(String[] args) throws Exception {
+        ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(A09Application.class, args);
+   System.out.println("getF3-看这个来源，是原始类还是代理类:" + bean.getF3().getClass());
+        System.out.println("getF3-打印日志了1，" + bean.getF3());
+        System.out.println("getF3-打印日志了2，" + bean.getF3());
+        System.out.println("getF3-打印日志了3，" + bean.getF3());
+}}
+```
+
+
+
+输出：
+
+```
+
+getF3-看这个来源，是原始类还是代理类:class com.example.springstudy.a009.F3
+getF3-打印日志了1，com.example.springstudy.a009.F3@1bc49bc5
+getF3-打印日志了2，com.example.springstudy.a009.F3@4f66ffc8
+getF3-打印日志了3，com.example.springstudy.a009.F3@2def7a7a
+```
+
+
+
+4. 使用applicationContext 获取
+
+   > ```java
+   > @Autowired
+   >     private ApplicationContext applicationContext;
+   > ```
+
+演示：
+
+```java
+@Component
+public class E {
+
+    @Autowired
+    private ApplicationContext applicationContext;
+  
+    public F4 getF4() {
+        return applicationContext.getBean(F4.class);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////
+@SpringBootApplication
+@EnableConfigurationProperties
+@ConfigurationPropertiesScan
+public class A09Application {
+    public static void main(String[] args) throws Exception {
+        ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(A09Application.class, args);
+
+        E bean = configurableApplicationContext.getBean(E.class);
+        System.out.println("getF4-看这个来源，是原始类还是代理类:" + bean.getF4().getClass());
+        System.out.println("getF4-打印日志了1，" + bean.getF4());
+        System.out.println("getF4-打印日志了2，" + bean.getF4());
+        System.out.println("getF4-打印日志了4，" + bean.getF4());
+
+        configurableApplicationContext.close();
+    }
+}
+```
+
+
+
+**结果：**
+
+getF4-看这个来源，是原始类还是代理类:class com.example.springstudy.a009.F4
+getF4-打印日志了1，com.example.springstudy.a009.F4@188cbcde
+getF4-打印日志了2，com.example.springstudy.a009.F4@4ee6291f
+getF4-打印日志了4，com.example.springstudy.a009.F4@2b03d52f
+
+
+
+##### **总结：**
+
+> 解决方法虽然不同，但理念上殊途同归：**都是推迟其他scope bean的获取**
 
 
 
 # 2、AOP
 
+## 第九讲、AOP实现值ajc编译器
 
+> 1. aop原始操作是使用代理来实现的
+> 2. 新的方法：使用ajc编译器也可以实现
+
+**演示：**
+
+**引入依赖：**
+
+> *切记 需要使用maven compile 编译，IDEA默认使用javac去build*
+
+```xml
+<dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+<build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>aspectj-maven-plugin</artifactId>
+                <version>1.14.0</version>
+                <configuration>
+                    <complianceLevel>1.8</complianceLevel>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <showWeaveInfo>true</showWeaveInfo>
+                    <complianceLevel>1</complianceLevel>
+                    <vervbose>true</vervbose>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+                <executions>
+                    <execution>
+                        <configuration>
+                            <skip>false</skip>
+                        </configuration>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+```
+
+
+
+**实现类：**
+
+```java
+
+@Service
+public class MyService {
+    public static void   foo(){
+        System.out.println("MyService===foo");
+    }
+}
+```
+
+**Aspect 类**:
+
+> ```java
+> // @Aspect 没有被spring管理
+> ```
+
+```java
+@Aspect
+public class MyAspect {
+
+    @Before("execution(* com.example.springstudy.a10.service.*.*(..))")
+    public void before(JoinPoint point) {
+        System.out.println("@Before：test...");
+    }
+
+}
+```
+
+
+
+**启动类：**
+
+```java
+public class A10Application {
+    public static void main(String[] args) throws Exception {
+        ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(A10Application.class, args);
+
+        MyService bean = configurableApplicationContext.getBean(MyService.class);
+        bean.foo();
+
+    }
+}
+```
+
+**结果输出：**
+
+> 没有使用代理 发现也可以实现拦截
+
+@Before：test...
+MyService===foo
+
+
+
+**查看MyService编译后的文件：**
+
+> *发现ajc已经改了class文件*
+
+```java
+
+@Service
+public class MyService {
+    public MyService() {
+    }
+
+    public void foo() {
+        JoinPoint var1 = Factory.makeJP(ajc$tjp_0, this, this);
+        MyAspect.aspectOf().before(var1);
+        System.out.println("MyService===foo");
+    }
+
+    static {
+        ajc$preClinit();
+    }
+}
+```
+
+
+
+**提问，如果执行的方法时static，那么子类将无法重写该方法，ajc可以操作吗？**
+
+**代码演示：**
+
+```java
+@Service
+public class MyService {
+
+    public static void foo() {
+        System.out.println("MyService===foo");
+    }
+}
+
+////////////////////////////////////////////////////////////////
+public class A10Application {
+    public static void main(String[] args) throws Exception {
+        ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(A10Application.class, args);
+        // 因为修改了是class文件 不是走代理 所以可以直接执行
+        new MyService().foo();
+
+    }
+}
+```
+
+**结果输出：**
+
+> 发现一样可以使用
+
+```java
+@Before：模拟权限检查...
+MyService===foo
+```
+
+
+
+## 第十讲、AOP之agent增强
+
+> **VM启动时增加参数 实现增强处理**，使用外置 jar（aspectjweaver-1.9.7.jar） 增强处理
+>
+> **VM参数：-javaagent:/usr/local/Repository/org/aspectj/aspectjweaver/1.9.7/aspectjweaver-1.9.7.jar**
+
+代码演示：
+
+> 如果有ajc 那么得注释掉插件 否则不好查看结果
+
+```java
+@Service
+public class MyService001 {
+
+    public void foo() {
+        System.out.println("MyService===foo");
+        bar();
+    }
+
+    public void bar() {
+        System.out.println("MyService===bar");
+    }
+
+}
+
+////////////////////////////////////////////////////////////////
+@Aspect
+@Component
+public class Aspect001 {
+
+    @Before("execution(* com.example.springstudy.a11.service.*.*(..))")
+    public void before(JoinPoint point) {
+        System.out.println("@Before：test...");
+
+    }
+
+}
+////////////////////////////////////////////////////////////////
+
+
+@SpringBootApplication
+@EnableConfigurationProperties
+@ConfigurationPropertiesScan
+public class A11Application {
+    public static void main(String[] args) throws Exception {
+        ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(A11Application.class, args);
+
+        MyService001 bean = configurableApplicationContext.getBean(MyService001.class);
+        bean.foo();
+    }
+}
+
+
+```
+
+启动时，增加VM参数
+
+> -javaagent:**/usr/local/Repository**/org/aspectj/aspectjweaver/1.9.7/aspectjweaver-1.9.7.jar
+>
+> 指向自己的maven jar包目录
+
+![image-20230211232335575](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230211232335575.png)
+
+输出结果：
+
+```
+@Before：test...
+MyService===foo
+MyService===bar
+```
 
 
 
