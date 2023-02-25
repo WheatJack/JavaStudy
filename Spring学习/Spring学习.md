@@ -2249,6 +2249,704 @@ MyService===foo
 MyService===bar
 ```
 
+**使用arthas来查看反编译的文件**
+
+> 使用jad命令 反编译java文件 
+>
+> 操作手册地址：https://arthas.aliyun.com/doc/quick-start.html
+
+![image-20230212120927947](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230212120927947.png)
+
+
+
+## 第十一讲、AOP实现之proxy
+
+### 1、JDK动态代理实现及要点
+
+> 注意点：JDK只能针对接口代理
+
+代码演示：
+
+```java
+public class JdkProxyDemo {
+
+    interface Foo {
+        String foo(String id);
+
+    }
+
+
+    static class Target implements Foo {
+        public String foo(String id) {
+            System.out.println("target foo");
+            return "String";
+        }
+    }
+
+    /**
+     * <p>
+     * 代理和目标是兄弟关系 不能集成实现
+     * <p>
+     *
+     * @author JackGao
+     * @since 2023/2/12 21:30
+     */
+
+    public static void main(String[] args) {
+
+        // 目标对象
+        Target target = new Target();
+        // 参数1 用来加载在运行期间动态生成的字节码
+        ClassLoader classLoader = JdkProxyDemo.class.getClassLoader();
+        //参数1    参数2 代理类实现什么接口，可以实现多个接口 参数3 执行的一些行为
+        // 返回类型 变成接口类型
+        Foo proxyInstance = (Foo) Proxy.newProxyInstance(classLoader, new Class[]{Foo.class}, (proxy, method, args1) -> {
+            System.out.println("before.......");
+            //  Object proxy --- 代理对象 , Method method 正在运行的方法, Object[] args  方法执行的参数
+
+            // 目标.方法(参数)
+            // 方法.invoke(目标,参数)
+            System.out.println("调用前");
+            Object invoke = method.invoke(target, args1);
+            System.out.println("调用后");
+
+            System.out.println("after.......");
+            // 让代理也返回目标方法执行的结果
+            return invoke;
+        });
+        // 代理调用父方法
+        proxyInstance.foo("张三");
+    }
+
+}
+```
+
+
+
+
+
+### 2、cglib代理实现及要点
+
+> ​	**invoke与invokeSuper的区别：**
+>
+> 1. **Spring** 使用invoke 这种方式，且内部不是反射，需要执行的目标
+> 2. invokeSuper内部执行不是代理，不需要执行目标
+
+代码演示：
+
+```java
+public class CglibProxyDemo {
+
+
+    static class Target {
+        public String foo(String id) {
+            System.out.println("target foo");
+            return "String";
+        }
+    }
+
+    /**
+     * <p>
+     * 代理类是子类型  目标类是父类型
+     * 子类型可以换成父类型
+     * <p>
+     * 父类不是时候final修饰 执行的时候会报错
+     * 执行的方法 可以 是final修饰的，但是 执行的时候 不能增强
+     * <p>
+     *
+     * @author JackGao
+     * @since 2023/2/12 21:30
+     */
+    public static void main(String[] args) {
+
+        // 目标对象
+        Target target = new Target();
+
+        Target targetProxy = (Target) Enhancer.create(Target.class, (MethodInterceptor) (proxy, method, objects, methodProxy) -> {
+            // 第一个参数 是代理对象 参数2 执行的方法  参数3 参数  参数4 类型执行的方法
+            System.out.println("before....");
+            // 方法反射调用目标 性能会弱一点
+            Object invoke1 = method.invoke(target, objects);
+            // 避免反射调用
+            // 内部不是使用反射 需要目标  Spring使用这种方式
+            Object invoke2 = methodProxy.invoke(target, objects);
+            // 内部没有用反射 需要代理
+            Object o = methodProxy.invokeSuper(proxy, objects);
+
+            System.out.println("after");
+            return o;
+        });
+
+        targetProxy.foo("张三");
+    }
+
+}
+
+```
+
+
+
+### 3、JDK代码源码实战
+
+手写源码：
+
+#### **1.第一版 简单实现**
+
+**要代理的类**
+
+```java
+public class A13 {
+
+    interface Foo {
+        void foo();
+    }
+
+    static class Target001 implements Foo {
+
+        @Override
+        public void foo() {
+            System.out.println("Target001  实现foo method");
+        }
+    }
+
+    public static void main(String[] args) {
+        Foo proxy = new $Proxy();
+        proxy.foo();
+    }
+
+
+}
+
+```
+
+**代理类**
+
+```java
+public class $Proxy implements A13.Foo {
+    @Override
+    public void foo() {
+        // 1.功能增强
+        System.out.println("before");
+        // 2.调用目标
+        new A13.Target001().foo();
+    }
+}
+```
+
+#### 2.第二版 抽象要增强的逻辑
+
+> 把需要增强的代码用接口抽象出来
+>
+> 让调用方决定抽象什么
+>
+> 逻辑不能写死 所以用接口抽象
+
+要代理的类
+
+```java
+public class A13 {
+
+    interface Foo {
+        void foo();
+    }
+
+    interface InvocationHandler {
+        void invoke();
+    }
+
+    static class Target001 implements Foo {
+
+        @Override
+        public void foo() {
+            System.out.println("Target001  实现foo method");
+        }
+    }
+
+    public static void main(String[] args) {
+        Foo proxy = new $Proxy(() -> {
+            // 功能增强
+            System.out.println("before");
+            // 调用目标
+            new Target001().foo();
+        });
+        proxy.foo();
+    }
+
+}
+```
+
+
+
+代理类
+
+```java
+public class $Proxy implements A13.Foo {
+
+    private A13.InvocationHandler invocationHandler;
+
+    public $Proxy(A13.InvocationHandler invocationHandler) {
+        this.invocationHandler = invocationHandler;
+    }
+
+    @Override
+    public void foo() {
+        invocationHandler.invoke();
+    }
+}
+```
+
+
+
+#### 3.第三版 目标类多个方法 代理优化
+
+> 动态设置 代理目标的哪个方法
+>
+> 使用方法对象 作为参数传入进来
+
+目标类
+
+```java
+public class A13 {
+
+    interface Foo {
+        void foo();
+
+        void bar();
+    }
+
+    interface InvocationHandler {
+        void invoke(Method method, Object[] objects) throws InvocationTargetException, IllegalAccessException;
+    }
+
+    static class Target001 implements Foo {
+
+        @Override
+        public void foo() {
+            System.out.println("Target001  实现foo method");
+        }
+
+        @Override
+        public void bar() {
+            System.out.println("Target001  实现bar method");
+        }
+    }
+
+    public static void main(String[] args) {
+        Foo proxy = new $Proxy((method, objects) -> {
+            // 功能增强
+            System.out.println("before");
+            // 调用目标
+            method.invoke(new Target001(), objects);
+        });
+        proxy.foo();
+        proxy.bar();
+
+    }
+
+}
+```
+
+
+
+代理类
+
+```java
+public class $Proxy implements A13.Foo {
+
+    private A13.InvocationHandler invocationHandler;
+
+    public $Proxy(A13.InvocationHandler invocationHandler) {
+        this.invocationHandler = invocationHandler;
+    }
+
+    @Override
+    public void foo() {
+        try {
+            Method foo = A13.Foo.class.getMethod("foo");
+            invocationHandler.invoke(foo, new Object[0]);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    @Override
+    public void bar() {
+        try {
+            Method foo = A13.Foo.class.getMethod("bar");
+            invocationHandler.invoke(foo, new Object[0]);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+```
+
+
+
+
+
+#### 4.第四版 增加代理方法返回值
+
+> 方法**增加返回值** 
+>
+> 并且增加了proxy 代理类对象 作为参数传入
+>
+> 处理了异常方法
+
+目标类：
+
+```java
+public class A13 {
+
+    interface Foo {
+        int foo();
+
+        void bar();
+    }
+
+
+    static class Target001 implements Foo {
+        @Override
+        public int foo() {
+            System.out.println("Target001  实现foo method");
+            return 100;
+        }
+
+        @Override
+        public void bar() {
+            System.out.println("Target001  实现bar method");
+        }
+    }
+
+    interface InvocationHandler {
+        Object invoke(Object proxy, Method method, Object[] objects) throws InvocationTargetException, IllegalAccessException;
+    }
+
+    public static void main(String[] args) {
+        Foo proxy = new $Proxy(new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] objects) throws InvocationTargetException, IllegalAccessException {
+                // 功能增强
+                System.out.println("before");
+                // 调用目标
+                Object invoke = method.invoke(new Target001(), objects);
+                return invoke;
+            }
+        });
+        int foo = proxy.foo();
+        System.out.println(foo);
+        proxy.bar();
+
+    }
+
+}
+```
+
+
+
+代理类：
+
+```java
+public class $Proxy implements A13.Foo {
+
+    private A13.InvocationHandler invocationHandler;
+
+    public $Proxy(A13.InvocationHandler invocationHandler) {
+        this.invocationHandler = invocationHandler;
+    }
+
+    @Override
+    public int foo() {
+        try {
+            Method foo = A13.Foo.class.getMethod("foo");
+            Object invoke = invocationHandler.invoke(this, foo, new Object[0]);
+            return (int) invoke;
+        } catch (RuntimeException | Error e) {
+            // 运行异常
+            throw e;
+        } catch (Throwable throwable) {
+            // 检查异常
+            throw new UndeclaredThrowableException(throwable);
+        }
+
+    }
+
+    @Override
+    public void bar() {
+        try {
+            Method foo = A13.Foo.class.getMethod("bar");
+            invocationHandler.invoke(this, foo, new Object[0]);
+        } catch (RuntimeException | Error e) {
+            // 运行异常 两大类 直接抛出
+            throw e;
+        } catch (Throwable throwable) {
+            // 检查异常 转换后抛
+            throw new UndeclaredThrowableException(throwable);
+        }
+    }
+}
+```
+
+
+
+结果输出：
+
+```
+before
+Target001  实现foo method
+100
+before
+Target001  实现bar method
+```
+
+##### 1.异常处理
+
+> 异常操作处理分为运行异常和检查异常
+>
+> 运行异常为RuntimeException、Error 直接抛出
+>
+> 检查异常 转换后抛出
+
+```java
+ try {
+            // TODO
+        } catch (RuntimeException | Error e) {
+            // 运行异常 两大类 直接抛出
+            throw e;
+        } catch (Throwable throwable) {
+            // 检查异常 转换后抛出
+            throw new UndeclaredThrowableException(throwable);
+        }
+```
+
+
+
+
+
+#### 5.第五版 优化代码
+
+> 处理了每次都要调用方法的问题---**使用静态方法块处理**
+>
+> 处理了构造方法---使用jdk的接口
+>
+> 处理成员变量的问题---extends Proxy
+
+目标类：
+
+```java
+public class A13 {
+
+    interface Foo {
+        int foo();
+
+        void bar();
+    }
+
+
+    static class Target001 implements Foo {
+        @Override
+        public int foo() {
+            System.out.println("Target001  实现foo method");
+            return 100;
+        }
+
+        @Override
+        public void bar() {
+            System.out.println("Target001  实现bar method");
+        }
+    }
+
+//    interface InvocationHandler {
+//        Object invoke(Object proxy, Method method, Object[] objects) throws InvocationTargetException, IllegalAccessException;
+//    }
+
+    public static void main(String[] args) {
+        Foo proxy = new $Proxy(new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] objects) throws InvocationTargetException, IllegalAccessException {
+                // 功能增强
+                System.out.println("before");
+                // 调用目标
+                Object invoke = method.invoke(new Target001(), objects);
+                return invoke;
+            }
+        });
+        int foo = proxy.foo();
+        System.out.println(foo);
+        proxy.bar();
+
+    }
+
+}
+```
+
+
+
+代理类：
+
+```java
+public class $Proxy extends Proxy implements A13.Foo {
+
+    public $Proxy(InvocationHandler invocationHandler) {
+        super(invocationHandler);
+    }
+
+    @Override
+    public int foo() {
+        try {
+            Object invoke = h.invoke(this, foo, new Object[0]);
+            return (int) invoke;
+        } catch (RuntimeException | Error e) {
+            // 运行异常
+            throw e;
+        } catch (Throwable throwable) {
+            // 检查异常
+            throw new UndeclaredThrowableException(throwable);
+        }
+
+    }
+
+    @Override
+    public void bar() {
+        try {
+            h.invoke(this, bar, new Object[0]);
+        } catch (RuntimeException | Error e) {
+            // 运行异常 两大类 直接抛出
+            throw e;
+        } catch (Throwable throwable) {
+            // 检查异常 转换后抛
+            throw new UndeclaredThrowableException(throwable);
+        }
+    }
+
+    static Method foo;
+    static Method bar;
+
+    static {
+        try {
+            foo = A13.Foo.class.getMethod("foo");
+            bar = A13.Foo.class.getMethod("bar");
+        } catch (NoSuchMethodException e) {
+            throw new NoSuchMethodError(e.getMessage());
+        }
+
+    }
+
+}
+```
+
+
+
+
+
+执行结果：
+
+```
+before
+Target001  实现foo method
+100
+before
+Target001  实现bar method
+```
+
+
+
+#### 6.查看JDK生成的Proxy类
+
+> 默认会代理equal()、toString()、hashcode()
+>
+> 然后会代理自己手写的方法
+
+```java
+package com.example.springstudy.a12;
+
+import com.example.springstudy.a12.JdkProxyDemo;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.lang.reflect.UndeclaredThrowableException;
+
+final class $Proxy0
+extends Proxy
+implements JdkProxyDemo.Foo {
+    private static Method m1;
+    private static Method m3;
+    private static Method m2;
+    private static Method m0;
+
+    public final String foo(String string) {
+        try {
+            return (String)this.h.invoke(this, m3, new Object[]{string});
+        }
+        catch (Error | RuntimeException throwable) {
+            throw throwable;
+        }
+        catch (Throwable throwable) {
+            throw new UndeclaredThrowableException(throwable);
+        }
+    }
+
+    public $Proxy0(InvocationHandler invocationHandler) {
+        super(invocationHandler);
+    }
+
+    static {
+        try {
+            m1 = Class.forName("java.lang.Object").getMethod("equals", Class.forName("java.lang.Object"));
+            m3 = Class.forName("com.example.springstudy.a12.JdkProxyDemo$Foo").getMethod("foo", Class.forName("java.lang.String"));
+            m2 = Class.forName("java.lang.Object").getMethod("toString", new Class[0]);
+            m0 = Class.forName("java.lang.Object").getMethod("hashCode", new Class[0]);
+            return;
+        }
+        catch (NoSuchMethodException noSuchMethodException) {
+            throw new NoSuchMethodError(noSuchMethodException.getMessage());
+        }
+        catch (ClassNotFoundException classNotFoundException) {
+            throw new NoClassDefFoundError(classNotFoundException.getMessage());
+        }
+    }
+
+    public final boolean equals(Object object) {
+        try {
+            return (Boolean)this.h.invoke(this, m1, new Object[]{object});
+        }
+        catch (Error | RuntimeException throwable) {
+            throw throwable;
+        }
+        catch (Throwable throwable) {
+            throw new UndeclaredThrowableException(throwable);
+        }
+    }
+
+    public final String toString() {
+        try {
+            return (String)this.h.invoke(this, m2, null);
+        }
+        catch (Error | RuntimeException throwable) {
+            throw throwable;
+        }
+        catch (Throwable throwable) {
+            throw new UndeclaredThrowableException(throwable);
+        }
+    }
+
+    public final int hashCode() {
+        try {
+            return (Integer)this.h.invoke(this, m0, null);
+        }
+        catch (Error | RuntimeException throwable) {
+            throw throwable;
+        }
+        catch (Throwable throwable) {
+            throw new UndeclaredThrowableException(throwable);
+        }
+    }
+}
+```
+
+
+
 
 
 # 3、Web MVC
