@@ -28,7 +28,7 @@ Kubernetes
   >
   > 容器化的应用程序可以跨云服务商、跨Linux操作系统发行版进行部署
 
-![image-20200505183738289](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gx13o92j30uw0bm0ui.jpg)
+![image-20200505183738289](/Users/gaoshang/Downloads/kubernetes学习/Kubenetes.assets/image-20200505183738289.png)
 
 容器化部署方式给带来很多的便利，但是也会出现一些问题，比如说：
 
