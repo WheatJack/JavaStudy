@@ -1,6 +1,4 @@
-Kubernetes
-
-# 1. Kubernetes介绍
+#1. Kubernetes介绍
 
 ## 1.1 应用部署方式演变
 
@@ -718,28 +716,32 @@ systemctl daemon-reload && systemctl restart docker && systemctl enable docker
 
 > kubernetes的本质上就是一个集群系统，用户可以在集群中部署各种服务，所谓的部署服务，其实就是在kubernetes集群中运行一个个的容器，并将指定的程序跑在容器中。
 >
-> kubernetes的最小管理单元是pod而不是容器，所以只能将容器放在`Pod`中，而kubernetes一般也不会直接管理Pod，而是通过`Pod控制器`来管理Pod的。
+> kubernetes的最小管理单元是pod而不是容器，所以只能将容器放在`**Pod**`中，而kubernetes一般也不会直接管理Pod，而是通过`**Pod控制器**`来管理Pod的。
 >
 > Pod可以提供服务之后，就要考虑如何访问Pod中服务，kubernetes提供了`Service`资源实现这个功能。
 >
 > 当然，如果Pod中程序的数据需要持久化，kubernetes还提供了各种`存储`系统。
 
-![image-20200406225334627](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gxt7q4ij30xn0iewh5.jpg)
+![image-20200406225334627](./Kubenetes.assets/image-20200406225334627.png)
 
 > 学习kubernetes的核心，就是学习如何对集群上的`Pod、Pod控制器、Service、存储`等各种资源进行操作
+
+
+
+
 
 ## 3.2 YAML语言介绍
 
 YAML是一个类似 XML、JSON 的标记性语言。它强调以**数据**为中心，并不是以标识语言为重点。因而YAML本身的定义比较简单，号称"一种人性化的数据格式语言"。
 
-```
+```xml
 <heima>
     <age>15</age>
     <address>Beijing</address>
 </heima>
 ```
 
-```
+```yaml
 heima:
   age: 15
   address: Beijing
@@ -759,7 +761,7 @@ YAML支持以下几种数据类型：
 - 对象：键值对的集合，又称为映射（mapping）/ 哈希（hash） / 字典（dictionary）
 - 数组：一组按次序排列的值，又称为序列（sequence） / 列表（list）
 
-```
+```yaml
 # 纯量, 就是指的一个简单的值，字符串、布尔值、整数、浮点数、Null、时间、日期
 # 1 布尔类型
 c1: true (或者True)
@@ -779,7 +781,7 @@ c8: line1
     line2     # 字符串过多的情况可以拆成多行，每一行会被转化成一个空格
 ```
 
-```
+```yaml
 # 对象
 # 形式一(推荐):
 heima:
@@ -789,7 +791,7 @@ heima:
 heima: {age: 15,address: Beijing}
 ```
 
-```
+```yaml
 # 数组
 # 形式一(推荐):
 address:
@@ -809,6 +811,8 @@ address: [顺义,昌平]
 >
 > https://www.json2yaml.com/convert-yaml-to-json
 
+
+
 ## 3.3 资源管理方式
 
 - 命令式对象管理：直接使用命令去操作kubernetes资源
@@ -819,7 +823,7 @@ address: [顺义,昌平]
 
   `kubectl create/patch -f nginx-pod.yaml`
 
-- 声明式对象配置：通过apply命令和配置文件去操作kubernetes资源
+- 声明式对象配置：通过apply命令和配置文件去操作kubernetes资源 apple 就是创建/更新
 
   `kubectl apply -f nginx-pod.yaml`
 
@@ -829,13 +833,15 @@ address: [顺义,昌平]
 | 命令式对象配置 | 文件     | 开发     | 可以审计、跟踪 | 项目大时，配置文件多，操作麻烦   |
 | 声明式对象配置 | 目录     | 开发     | 支持目录操作   | 意外情况下难以调试               |
 
+
+
 ### 3.3.1 命令式对象管理
 
 **kubectl命令**
 
 kubectl是kubernetes集群的命令行工具，通过它能够对集群本身进行管理，并能够在集群上进行容器化应用的安装部署。kubectl命令的语法如下：
 
-```
+```shell
 kubectl [command] [type] [name] [flags]
 ```
 
@@ -843,7 +849,7 @@ kubectl [command] [type] [name] [flags]
 
 **type**：指定资源类型，比如deployment、pod、service
 
-**name**：指定资源的名称，名称大小写敏感
+**name**：指定资源的名称，名称大小写敏感 
 
 **flags**：指定额外的可选参数
 
@@ -964,11 +970,12 @@ namespace "dev" deleted
 1） 创建一个nginxpod.yaml，内容如下：
 
 ```yaml
+
 apiVersion: v1
 kind: Namespace
 metadata:
   name: dev
-
+  
 ---
 
 apiVersion: v1
@@ -978,8 +985,8 @@ metadata:
   namespace: dev
 spec:
   containers:
-  - name: nginx-containers
-    image: nginx:latest
+   - name: nginx-containers
+     image: nginx:latest
 ```
 
 2）执行create命令，创建资源：
@@ -1049,7 +1056,7 @@ pod/nginxpod unchanged
 kubectl的运行是需要进行配置的，它的配置文件是$HOME/.kube，如果想要在node节点运行此命令，需要将master上的.kube文件复制到node节点上，即在master节点上执行下面操作：
 
 ```shell
-scp  -r  HOME/.kube   node1: HOME/
+scp  -r  HOME/.kube   node1: ~/
 ```
 
 > 使用推荐: 三种方式应该怎么用 ?
@@ -1072,11 +1079,11 @@ Namespace是kubernetes系统中的一种非常重要资源，它的主要作用�
 
 可以通过kubernetes的授权机制，将不同的namespace交给不同租户进行管理，这样就实现了多租户的资源隔离。此时还能结合kubernetes的资源配额机制，限定不同租户能占用的资源，例如CPU使用量、内存使用量等等，来实现租户可用资源的管理。
 
-![image-20200407100850484](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gy0nfeoj30uh0fwabe.jpg)
+![image-20200407100850484](./Kubenetes.assets/20230305.png)
+
+
 
 kubernetes在集群启动之后，会默认创建几个namespace
-
-
 
 ```shell
 [root@master ~]# kubectl  get namespace
@@ -1168,13 +1175,15 @@ metadata:
 
 删除：kubectl delete -f ns-dev.yaml
 
+
+
 ## 4.2 Pod
 
 Pod是kubernetes集群进行管理的最小单元，程序要运行必须部署在容器中，而容器必须存在于Pod中。
 
 Pod可以认为是容器的封装，一个Pod中可以存在一个或者多个容器。
 
-![image-20200407121501907](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gy51oh8j30hl0cw0te.jpg)
+![image-20200407121501907](./Kubenetes.assets/20230305-001.png)
 
 kubernetes在集群启动之后，集群中的各个组件也都是以Pod方式运行的。可以通过下面命令查看：
 
@@ -1216,56 +1225,56 @@ nginx   1/1     Running   0          43s
 
 # 查看Pod的详细信息
 [root@master ~]# kubectl describe pod nginx -n dev
-Name:         nginx
-Namespace:    dev
+Name:         nginx-7476fd85d4-wn2n9
+Namespace:    jack-namespace
 Priority:     0
-Node:         node1/192.168.5.4
-Start Time:   Wed, 08 May 2021 09:29:24 +0800
-Labels:       pod-template-hash=5ff7956ff6
+Node:         node1/192.168.191.159
+Start Time:   Sun, 05 Mar 2023 19:34:38 +0800
+Labels:       pod-template-hash=7476fd85d4
               run=nginx
 Annotations:  <none>
 Status:       Running
-IP:           10.244.1.23
+IP:           10.244.2.7
 IPs:
-  IP:           10.244.1.23
-Controlled By:  ReplicaSet/nginx
+  IP:           10.244.2.7
+Controlled By:  ReplicaSet/nginx-7476fd85d4
 Containers:
   nginx:
-    Container ID:   docker://4c62b8c0648d2512380f4ffa5da2c99d16e05634979973449c98e9b829f6253c
+    Container ID:   docker://e541723ec48c655839b39cb2cb76ae9365c03408a16902619d6afa7fd64f1368
     Image:          nginx:latest
-    Image ID:       docker-pullable://nginx@sha256:485b610fefec7ff6c463ced9623314a04ed67e3945b9c08d7e53a47f6d108dc7
-    Port:           80/TCP
+    Image ID:       docker-pullable://nginx@sha256:0d17b565c37bcbd895e9d92315a05c1c3c9a29f762b011a10c54a66cd53c9b31
+    Port:           81/TCP
     Host Port:      0/TCP
     State:          Running
-      Started:      Wed, 08 May 2021 09:30:01 +0800
+      Started:      Sun, 05 Mar 2023 19:34:55 +0800
     Ready:          True
     Restart Count:  0
     Environment:    <none>
     Mounts:
-      /var/run/secrets/kubernetes.io/serviceaccount from default-token-hwvvw (ro)
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-qlfrg (ro)
 Conditions:
   Type              Status
-  Initialized       True
-  Ready             True
-  ContainersReady   True
-  PodScheduled      True
+  Initialized       True 
+  Ready             True 
+  ContainersReady   True 
+  PodScheduled      True 
 Volumes:
-  default-token-hwvvw:
+  default-token-qlfrg:
     Type:        Secret (a volume populated by a Secret)
-    SecretName:  default-token-hwvvw
+    SecretName:  default-token-qlfrg
     Optional:    false
 QoS Class:       BestEffort
 Node-Selectors:  <none>
 Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
                  node.kubernetes.io/unreachable:NoExecute for 300s
 Events:
-  Type    Reason     Age        From               Message
-  ----    ------     ----       ----               -------
-  Normal  Scheduled  <unknown>  default-scheduler  Successfully assigned dev/nginx-5ff7956ff6-fg2db to node1
-  Normal  Pulling    4m11s      kubelet, node1     Pulling image "nginx:latest"
-  Normal  Pulled     3m36s      kubelet, node1     Successfully pulled image "nginx:latest"
-  Normal  Created    3m36s      kubelet, node1     Created container nginx
-  Normal  Started    3m36s      kubelet, node1     Started container nginx
+  Type    Reason     Age   From               Message
+  ----    ------     ----  ----               -------
+  Normal  Scheduled  75s   default-scheduler  Successfully assigned jack-namespace/nginx-7476fd85d4-wn2n9 to node1
+  Normal  Pulling    74s   kubelet, node1     Pulling image "nginx:latest"
+  Normal  Pulled     58s   kubelet, node1     Successfully pulled image "nginx:latest"
+  Normal  Created    58s   kubelet, node1     Created container nginx
+  Normal  Started    58s   kubelet, node1     Started container nginx
 ```
 
 **访问Pod**
@@ -1343,6 +1352,8 @@ spec:
 创建：kubectl create -f pod-nginx.yaml
 
 删除：kubectl delete -f pod-nginx.yaml
+
+
 
 ## 4.3 Label
 
