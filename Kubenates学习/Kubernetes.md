@@ -28,7 +28,7 @@ Kubernetes
   >
   > 容器化的应用程序可以跨云服务商、跨Linux操作系统发行版进行部署
 
-![image-20200505183738289](/Users/gaoshang/Downloads/kubernetes学习/Kubenetes.assets/image-20200505183738289.png)
+![image-20200505183738289](./Kubenetes.assets/image-20200505183738289.png)
 
 容器化部署方式给带来很多的便利，但是也会出现一些问题，比如说：
 
@@ -41,11 +41,11 @@ Kubernetes
 - **Mesos**：Apache的一个资源统一管控的工具，需要和Marathon结合使用
 - **Kubernetes**：Google开源的的容器编排工具
 
-![image-20200524150339551](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gx67bbbj30gh07kjrg.jpg)
+![image-20200524150339551](./Kubenetes.assets/image-20200524150339551.png)
 
 ## 1.2 kubernetes简介
 
-![image-20200406232838722](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gxa886fj30f107tt8y.jpg)
+![image-20200406232838722](./Kubenetes.assets/image-20200406232838722.png)
 
  
 
@@ -60,11 +60,13 @@ kubernetes的本质是**一组服务器集群**，它可以在集群的每个节
 - **版本回退**：如果发现新发布的程序版本有问题，可以立即回退到原来的版本
 - **存储编排**：可以根据容器自身的需求自动创建存储卷
 
-![image-20220103145744057](https://tva1.sinaimg.cn/large/008i3skNgy1gy0hqpeg71j30mf0bp0th.jpg)
+![image-20230302205908525](./Kubenetes.assets/image-20230302205908525.png)
+
+![image-20230302205946735](./Kubenetes.assets/11111.png)
 
 ## 1.3 kubernetes组件
 
-一个kubernetes集群主要是由**控制节点(master)**、**工作节点(node)**构成，每个节点上都会安装不同的组件。
+  一个kubernetes集群主要是由**控制节点(master)**、**工作节点(node)**构成，每个节点上都会安装不同的组件。
 
 **master：集群的控制平面，负责集群的决策 ( 管理 )**
 
@@ -84,7 +86,7 @@ kubernetes的本质是**一组服务器集群**，它可以在集群的每个节
 >
 > **Docker** : 负责节点上容器的各种操作
 
-![image-20200406184656917](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gxcqsfij313w0kpwhr.jpg)
+![image-20200406184656917](./Kubenetes.assets/image-20200406184656917.png)
 
 下面，以部署一个nginx服务来说明kubernetes系统各个组件调用关系：
 
@@ -122,9 +124,7 @@ kubernetes的本质是**一组服务器集群**，它可以在集群的每个节
 
 **NameSpace**：命名空间，用来隔离pod的运行环境
 
-
-
-![image-20220103155213316](https://tva1.sinaimg.cn/large/008i3skNgy1gy0jbe9sjqj30m50d6q3r.jpg)
+![image-20230302211356437](./Kubenetes.assets/333.png)
 
 # 2. kubernetes集群环境搭建
 
@@ -151,7 +151,9 @@ kubernetes集群分为两类：**一主多从和多主多从**
 - 一主多从：一台master节点和多台Node节点，搭建简单，但是有单机故障风险，适用于测试环境
 - 多主多从：多台master节点和多台Node节点，搭建麻烦，安全性高，适合用于生产环境
 
-![image-20200404094800622](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gxhkbmzj30zv0e9wfx.jpg)
+
+
+![image-20200404094800622](./Kubenetes.assets/image-20200404094800622.png)
 
 ### 2.1.2 安装方式
 
@@ -190,84 +192,432 @@ kubeadm 是官方社区推出的一个用于快速部署kubernetes 集群的工�
 
 ### 2.2.2 主机搭建
 
- 
+**前提要求：**
+
+> 在开始之前，部署Kubernetes 集群机器需要满足以下几个条件：
+>
+> - 一台或多台机器，操作系统CentOS7.x-86_x64
+> - 硬件配置：2GB 或更多RAM，2 个CPU 或更多CPU，硬盘30GB 或更多
+> - 集群中所有机器之间网络互通
+> - 可以访问外网，需要拉取镜像
+> - 禁止swap 分区
+
+**最终目标：**
+
+> - 在所有节点上安装Docker 和kubeadm
+> - 部署Kubernetes Master
+> - 部署容器网络插件
+> - 部署Kubernetes Node，将节点加入Kubernetes 集群中
+> - 部署Dashboard Web 页面，可视化查看Kubernetes 资源
+
+安装虚拟机过程中注意下面选项的配置：
+
+- 操作系统环境：2c、2g、50G
+
+- 软件选择：基础设施服务器
+
+- 分期选择：自动分区
+
+- 网络配置：按照下面配置网络地址信息：
+
+  > 网络地址（固定IP）：192.168.xxx.xxx （每台主机都不一样，分别为xxx | xxx | xxx）
+  >
+  > 子网掩码：255.255.255.0
+  >
+  > 默认网关：192.168.xxx.2
+  >
+  > DNS：223.5.5.5 （阿里的）
+
+  
+
+### 2.2.2 Mac 安装centos7
+
+#### 1、创建自定义虚拟机（Linux）
+
+> 一路next next next
+>
+> **如果想默认安装 可以直接把镜像拖到映像安装中 就是默认装的可视化版本**
+
+<img src="./Kubenetes.assets/1111.png" alt="image-20230304201642815" style="zoom:50%;" />
+
+#### 2、设置镜像位置
+
+> 然后直接启动就好
+
+![image-20230304201952043](./Kubenetes.assets/2222.png)
 
 
 
-## 2.3 安装要求
+![image-20230304202022931](./Kubenetes.assets/image-20230304202022931.png)
 
-在开始之前，部署Kubernetes 集群机器需要满足以下几个条件：
+**选择install Centos7**
 
-- 一台或多台机器，操作系统CentOS7.x-86_x64
-- 硬件配置：2GB 或更多RAM，2 个CPU 或更多CPU，硬盘30GB 或更多
-- 集群中所有机器之间网络互通
-- 可以访问外网，需要拉取镜像
-- 禁止swap 分区
+![image-20230304202226302](./Kubenetes.assets/image-20230304202226302.png)
 
-## 2.4 最终目标
+#### 3、配置相关参数
 
-- 在所有节点上安装Docker 和kubeadm
-- 部署Kubernetes Master
-- 部署容器网络插件
-- 部署Kubernetes Node，将节点加入Kubernetes 集群中
-- 部署Dashboard Web 页面，可视化查看Kubernetes 资源
+##### **软件安装和分区配置**
 
-## 2.5 准备环境
+![image-20230304202640970](./Kubenetes.assets/image-20230304202640970.png)
 
- 
 
-![image-20210609000002940](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gxkd984j30ie0cngmx.jpg)
 
-| 角色         | IP地址          | 组件                              |
-| :----------- | :-------------- | :-------------------------------- |
-| k8s-master01 | 192.168.191.130 | docker，kubectl，kubeadm，kubelet |
-| k8s-node01   | 192.168.5.4     | docker，kubectl，kubeadm，kubelet |
-| k8s-node02   | 192.168.5.5     | docker，kubectl，kubeadm，kubelet |
+##### 网络配置
 
-## 2.6 系统初始化
+> 配置常规配置 **开启使用网卡**
 
-### 2.6.1 设置系统主机名以及 Host 文件的相互解析
+![image-20230304202802686](./Kubenetes.assets/image-20230304202802686.png)
+
+> **如果是使用动态IP的话，那么就需要配置下面**
+>
+> 配置静态IP如下：
+>
+> 网络地址（固定IP）：192.168.xxx.xxx （每台主机都不一样）
+>
+> 子网掩码：255.255.255.0
+>
+> 默认网关：192.168.xxx.2 （固定IP 最后一位使用2 ）
+>
+> DNS：223.5.5.5 （阿里的）
+
+![image-20230304202852661](./Kubenetes.assets/image-20230304202852661.png)
+
+**然后一路保存，无脑安装即可**
+
+
+
+
+
+
+
+### 2.2.3 环境初始化
+
+1） 检查操作系统的版本
 
 ```shell
-hostnamectl set-hostname k8s-master01 && bash
-hostnamectl set-hostname k8s-node01 && bash
-hostnamectl set-hostname k8s-node02 && bash
+# 此方式下 安装kubernates集群要求Centos版本要在7.5或之上
+cat /etc/redhad-release
 ```
 
+2）主机名解析
+
+为了方便后面集群节点间的直接调用，需要配置主机名解析，企业中推荐使用内部DNS服务器
+
 ```shell
-cat <<EOF>> /etc/hosts
-192.168.5.3     k8s-master01
-192.168.5.4     k8s-node01
-192.168.5.5     k8s-node02
-EOF
+# 主机名解析 编辑三台服务器的/etc/hosts文件 添加以下内容
+
+192.168.191.158  master
+192.168.191.159  node1
+192.168.191.160  node2
 ```
 
+ 3）时间同步
+
+kubernates 要求集群中的节点时间必须精确一致，这里直接使用chronyd服务从网络同步时间。
+
+企业中建议配置内部的时间同步器
+
 ```shell
-scp /etc/hosts root@192.168.5.4:/etc/hosts 
-scp /etc/hosts root@192.168.5.5:/etc/hosts 
+# 方法一 启动chronyd服务
+[root@master ~]# systemctl start  chronyd
+# 设置chronyd 服务开机自启动
+[root@master ~]# systemctl enable chronyd
+
+# 方法二
+
+# 设置系统时区为 中国/上海
+timedatectl set-timezone Asia/Shanghai
+# 将当前的 UTC 时间写入硬件时钟
+timedatectl set-local-rtc 0
+# 重启依赖于系统时间的服务
+systemctl restart rsyslog
+systemctl restart crond
+
 ```
 
-### 2.6.2 安装依赖文件（所有节点都要操作）
+4）禁用iptales和firewall 服务
+
+kubernates和docker在运行中会产生大量的iptables规则 为了不让系统规则和他们混淆 直接关闭系统的规则
 
 ```shell
-yum install -y conntrack ntpdate ntp ipvsadm ipset jq iptables curl sysstat libseccomp wget vim net-tools git
-```
+# 关闭firewalld服务
+[root@node2 ~]# systemctl  stop firewalld
+[root@node2 ~]# systemctl disable firewalld
+# 关闭iptables服务
+[root@node2 ~]# systemctl stop iptables
+[root@node2 ~]# systemctl disable iptables
 
-### 2.6.3 设置防火墙为 Iptables 并设置空规则（所有节点都要操作）
-
-```shell
+# 方法二 
 systemctl stop firewalld && systemctl disable firewalld
 
 yum -y install iptables-services && systemctl start iptables && systemctl enable iptables && iptables -F && service iptables save
+
 ```
 
-### 2.6.4 关闭 SELINUX（所有节点都要操作）
+5）禁用selinux
+
+selinux是linux系统下的一个安全服务，如果不关闭它，在安装集群中会产生各种各样的奇葩问题
 
 ```shell
-swapoff -a && sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
-
-setenforce 0 && sed -i 's/^SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
+# 编辑 vi /etc/selinux/config  文件 修改selinux的值为disabled
+# 修改完毕后 需要reboot 服务器
+SELINUX=disabled
 ```
+
+6）禁用swap分区
+
+swap分区指的是虚拟内存分区，它的作用是在物理内存使用之后，将磁盘空间虚拟成内存来使用
+
+启用swap设备会对系统的性能产生非常负面的影响，因此kubernates要求每个节点都要禁用swap设备
+
+但是如果因为某些原因确实不能关闭swap分区，就需要再集群安装过程中通过明确的参数进行配置说明
+
+```shell
+# 编辑分区配置文件/etc/fstab ，注释swap分区一行
+# 注意修改完毕后 需要reboot 服务器
+vi /etc/fstab
+# /dev/mapper/centos-swap swap                    swap    defaults        0 0
+
+```
+
+7）修改linux的内核参数
+
+ ```shell
+ # 修改内核参数 添加网桥过滤和地址转发功能
+ # 编辑 vi /etc/sysctl.d/kubernates.conf  问难 添加以下配置
+ net.bridge.bridge-nf-call-iptables=1
+ net.bridge.bridge-nf-call-ip6tables=1
+ net.ipv4.ip_forward=1
+ # 重新加载配置
+ [root@node2 ~]# sysctl -p
+ # 加载网桥过滤模块
+ [root@node2 ~]# modprobe br_netfilter
+ # 查看网桥过滤模块是否加载成功
+ [root@node2 ~]# lsmod | grep br_netfilter
+ br_netfilter           22256  0 
+ bridge                151336  1 br_netfilter
+ 
+ 
+ ```
+
+
+
+8）配置ipvs功能
+
+在kubernates中的service有两种代理模式 一种是基于iptables 一种是基于ipvs的
+
+两者比较的话，ipvs的性能明显要高一些 如果但是要使用它 需要手动载入ipvs模块
+
+```shell
+# 安装ipset 和ipvsadm 和一些杂七杂八的插件
+[root@master ~]# yum install ipset ipvsadmin -y
+# 一些杂七杂八的插件
+[root@master ~]# yum install -y conntrack ntpdate ntp ipvsadm ipset jq iptables curl sysstat libseccomp wget vim net-tools git
+
+
+# 添加需要加载的模块写入脚本文件
+cat <<EOF> /etc/sysconfig/modules/ipvs.modules 
+#!/bin/bash
+modprobe -- ip_vs
+modprobe -- ip_vs_rr
+modprobe -- ip_vs_wrr
+modprobe -- ip_vs_sh
+modprobe -- nf_conntrack_ipv4
+EOF
+# 为脚本文件添加执行权限
+[root@master ~]# chmod +x /etc/sysconfig/modules/ipvs.modules 
+
+# 执行脚本文件
+[root@node2 ~]# /bin/bash /etc/sysconfig/modules/ipvs.modules 
+
+# 查看对应的模块是否加载成功
+[root@master ~]# lsmod | grep -e ip_vs -e nf_contrack_ipv4
+
+```
+
+
+
+9）重启服务器
+
+```shell
+reboot
+```
+
+
+
+### 2.2.4 安装docker
+
+```shell
+# 切换镜像源头  增加镜像源
+[root@master ~]# yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+
+# 查看当前镜像源中支持的docker版本
+[root@master ~]# yum list docker-ce --showduplicates
+
+# 安装指定版本的 docker-ce
+# 必须指定  --setopt=obsoletes=0  否则yum会自动安装更高的版本
+[root@master ~]# yum install --setopt=obsoletes=0 docker-ce-18.06.0.ce-3.el7 -y
+
+# 添加配置文件
+# Docker在默认情况下使用的Cgroup Driver 为cgroupfs 而kubernates 推荐使用systemd来代替cgroupfs
+[root@node2 ~]# mkdir /etc/docker
+
+cat > /etc/docker/daemon.json <<EOF
+{
+"exec-opts": ["native.cgroupdriver=systemd"],
+"registry-mirrors": ["https://kn0t2bca.mirror.aliyuncs.com"]
+}
+EOF
+
+# 启动docker
+[root@master ~]# systemctl restart docker
+[root@master ~]# systemctl enable docker
+[root@master ~]# docker version
+
+
+```
+
+
+
+### 2.2.5 安装kubernates组件
+
+```shell
+# 由于kubernates的镜像源在国外 速度较慢，这里切换成国内的镜像源
+cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=http://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=0
+repo_gpgcheck=0
+gpgkey=http://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg
+http://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
+EOF
+
+# 安装kubeadm、kubelet 和 kubectl
+[root@node1 ~]# yum install --setopt=obsoletes=0  kubeadm-1.17.4-0 kubelet-1.17.4-0 kubectl-1.17.4-0 -y
+yum install -y kubelet kubeadm kubectl && systemctl enable kubelet
+
+# 配置kubelet 的cgroup
+# 编辑 /etc/sysconfig/kubelet 添加下面的配置
+[root@master ~]# vi /etc/sysconfig/kubelet
+KUBELET_CGROUP_ARGS="--cgroup-driver=systemd"
+KUBE_PROXY_MODE="ipvs"
+
+# 设置 kubelet 开机自启
+[root@node2 ~]# systemctl  enable kubelet
+
+
+```
+
+
+
+### 2.2.6 集群初始化
+
+下面开始对集群进行初始化，并将node节点加入到集群中
+
+> 下面这些操作只需要在master节点上执行即可
+
+```shell
+# 创建集群
+[root@master ~]# kubeadm init  --apiserver-advertise-address=192.168.191.158  --image-repository=registry.aliyuncs.com/google_containers  --kubernetes-version=v1.17.4 --service-cidr=10.96.0.0/12 --pod-network-cidr=10.244.0.0/16
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+You should now deploy a pod network to the cluster.
+Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 192.168.191.158:6443 --token xt2b7d.ntnu1njgmazvfelt \
+    --discovery-token-ca-cert-hash sha256:13dddf1de88723d6d96342ce01cb7133580be3785de4ca5c7883ca1287d50886 
+
+
+# 创建必要文件和权限（按照上述提示来）
+[root@master ~]#   mkdir -p $HOME/.kube
+[root@master ~]#   sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+[root@master ~]#   sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+```
+
+> 下面的操作只需要在node节点上执行即可
+
+```shell
+# 将node节点加入到集群中
+[root@node2 ~]# kubeadm join 192.168.191.158:6443 --token xt2b7d.ntnu1njgmazvfelt \
+>     --discovery-token-ca-cert-hash sha256:13dddf1de88723d6d96342ce01cb7133580be3785de4ca5c7883ca1287d50886 
+
+# 查看集群状态
+[root@master ~]# kubectl get nodes
+NAME     STATUS     ROLES    AGE     VERSION
+master   NotReady   master   6m59s   v1.17.4
+node1    NotReady   <none>   33s     v1.17.4
+node2    NotReady   <none>   42s     v1.17.4
+
+```
+
+
+
+### 2.2.7 安装网络服务
+
+kubernates支持多种网络插件，比如flannel、calico、canal等等，任选一种使用即可，本次选择flannel
+
+> 下面的操作只需要在master节点执行即可，插件使用的是DaemonSet的控制器，它会在每个节点都运行
+
+```shell
+#获取fannel的配置文件 并设置使用配置文件启动fannel （需要科学上网）
+[root@master ~]# kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+# 没有科学上网的  使用下面的步骤
+[root@master ~]# wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+# 使用配置文件启动fannel
+[root@master ~]# kubectl apply -f  kube-flannel.yml
+
+# 查看集群节点的状态
+[root@master ~]# kubectl get nodes
+NAME     STATUS   ROLES    AGE   VERSION
+master   Ready    master   11h   v1.17.4
+node1    Ready    <none>   11h   v1.17.4
+node2    Ready    <none>   11h   v1.17.4
+
+```
+
+
+
+## 2.3 测试kubernetes 集群
+
+### 2.3.1 部署nginx 测试
+
+> 接下来在kubernates集群总部署一个nginx程序，测试下集群是否正常工作
+>
+> 只需要在master节点操作即可
+
+```shell
+# 部署nginx
+[root@master ~]# kubectl create deployment nginx --image=nginx
+# 暴露端口
+[root@master ~]# kubectl expose deployment nginx --port=80 --type=NodePort
+# 查看服务状态  svc 就是service的缩写
+[root@master ~]# kubectl get pod,svc
+NAME                         READY   STATUS    RESTARTS   AGE
+pod/nginx-86c57db685-qvnhp   1/1     Running   0          44s
+
+NAME                 TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+service/kubernetes   ClusterIP   10.96.0.1      <none>        443/TCP        11h
+service/nginx        NodePort    10.111.29.89   <none>        80:32295/TCP   33s
+
+```
+
+
+
+
+
+## 2.6 系统初始化 TODO
 
 ### 2.6.5 调整内核参数，对于 K8S（所有节点都要操作）
 
@@ -295,17 +645,7 @@ cp kubernetes.conf /etc/sysctl.d/kubernetes.conf
 sysctl -p /etc/sysctl.d/kubernetes.conf
 ```
 
-### 2.6.6 调整系统时区（所有节点都要操作）
 
-```shell
-# 设置系统时区为 中国/上海
-timedatectl set-timezone Asia/Shanghai
-# 将当前的 UTC 时间写入硬件时钟
-timedatectl set-local-rtc 0
-# 重启依赖于系统时间的服务
-systemctl restart rsyslog
-systemctl restart crond
-```
 
 ### 2.6.7 设置 rsyslogd 和 systemd journald（所有节点都要操作）
 
@@ -341,27 +681,14 @@ EOF
 systemctl restart systemd-journald
 ```
 
-### 2.6.8 kube-proxy开启ipvs的前置条件（所有节点都要操作）
 
-```shell
-cat <<EOF> /etc/sysconfig/modules/ipvs.modules 
-#!/bin/bash
-modprobe -- ip_vs
-modprobe -- ip_vs_rr
-modprobe -- ip_vs_wrr
-modprobe -- ip_vs_sh
-modprobe -- nf_conntrack_ipv4
-EOF
-
-chmod 755 /etc/sysconfig/modules/ipvs.modules && bash /etc/sysconfig/modules/ipvs.modules && lsmod | grep -e ip_vs -e nf_conntrack_ipv4
-```
 
 ### 2.6.9 安装 Docker 软件（所有节点都要操作）
 
 ```shell
 yum install -y yum-utils device-mapper-persistent-data lvm2
 
-yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 
 yum install -y docker-ce
 
@@ -381,360 +708,7 @@ mkdir -p /etc/systemd/system/docker.service.d
 # 重启docker服务
 systemctl daemon-reload && systemctl restart docker && systemctl enable docker
 ```
-上传文件到``` /etc/yum.repos.d/ ```目录下，也可以 代替 ``` yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo ``` 命令
 
-docker-ce.repo
-
-```shell
-[docker-ce-stable]
-name=Docker CE Stable - $basearch
-baseurl=https://mirrors.aliyun.com/docker-ce/linux/centos/$releasever/$basearch/stable
-enabled=1
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
-
-[docker-ce-stable-debuginfo]
-name=Docker CE Stable - Debuginfo $basearch
-baseurl=https://mirrors.aliyun.com/docker-ce/linux/centos/$releasever/debug-$basearch/stable
-enabled=0
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
-
-[docker-ce-stable-source]
-name=Docker CE Stable - Sources
-baseurl=https://mirrors.aliyun.com/docker-ce/linux/centos/$releasever/source/stable
-enabled=0
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
-
-[docker-ce-test]
-name=Docker CE Test - $basearch
-baseurl=https://mirrors.aliyun.com/docker-ce/linux/centos/$releasever/$basearch/test
-enabled=0
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
-
-[docker-ce-test-debuginfo]
-name=Docker CE Test - Debuginfo $basearch
-baseurl=https://mirrors.aliyun.com/docker-ce/linux/centos/$releasever/debug-$basearch/test
-enabled=0
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
-
-[docker-ce-test-source]
-name=Docker CE Test - Sources
-baseurl=https://mirrors.aliyun.com/docker-ce/linux/centos/$releasever/source/test
-enabled=0
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
-
-[docker-ce-nightly]
-name=Docker CE Nightly - $basearch
-baseurl=https://mirrors.aliyun.com/docker-ce/linux/centos/$releasever/$basearch/nightly
-enabled=0
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
-
-[docker-ce-nightly-debuginfo]
-name=Docker CE Nightly - Debuginfo $basearch
-baseurl=https://mirrors.aliyun.com/docker-ce/linux/centos/$releasever/debug-$basearch/nightly
-enabled=0
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
-
-[docker-ce-nightly-source]
-name=Docker CE Nightly - Sources
-baseurl=https://mirrors.aliyun.com/docker-ce/linux/centos/$releasever/source/nightly
-enabled=0
-gpgcheck=1
-gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
-```
-
-### 2.6.10 安装 Kubeadm （所有节点都要操作）
-
-```shell
-cat <<EOF > /etc/yum.repos.d/kubernetes.repo
-[kubernetes]
-name=Kubernetes
-baseurl=http://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
-enabled=1
-gpgcheck=0
-repo_gpgcheck=0
-gpgkey=http://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg
-http://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
-EOF
-
-yum install -y kubelet kubeadm kubectl && systemctl enable kubelet
-```
-
-## 2.7 部署Kubernetes Master
-
-### 2.7.1 初始化主节点（主节点操作）
-
-```shell
-kubeadm init --apiserver-advertise-address=192.168.5.3 --image-repository registry.aliyuncs.com/google_containers --kubernetes-version v1.21.1 --service-cidr=10.96.0.0/12 --pod-network-cidr=10.244.0.0/16
-
-mkdir -p $HOME/.kube
-
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
-```
-
-### 2.7.2 加入主节点以及其余工作节点
-
-```shell
-kubeadm join 192.168.5.3:6443 --token h0uelc.l46qp29nxscke7f7 \
-        --discovery-token-ca-cert-hash sha256:abc807778e24bff73362ceeb783cc7f6feec96f20b4fd707c3f8e8312294e28f 
-```
-
-### 2.7.3 部署网络
-
-```shell
-kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-```
-
-下边是文件
-
-```yaml
----
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
-metadata:
-  name: psp.flannel.unprivileged
-  annotations:
-    seccomp.security.alpha.kubernetes.io/allowedProfileNames: docker/default
-    seccomp.security.alpha.kubernetes.io/defaultProfileName: docker/default
-    apparmor.security.beta.kubernetes.io/allowedProfileNames: runtime/default
-    apparmor.security.beta.kubernetes.io/defaultProfileName: runtime/default
-spec:
-  privileged: false
-  volumes:
-  - configMap
-  - secret
-  - emptyDir
-  - hostPath
-  allowedHostPaths:
-  - pathPrefix: "/etc/cni/net.d"
-  - pathPrefix: "/etc/kube-flannel"
-  - pathPrefix: "/run/flannel"
-  readOnlyRootFilesystem: false
-  # Users and groups
-  runAsUser:
-    rule: RunAsAny
-  supplementalGroups:
-    rule: RunAsAny
-  fsGroup:
-    rule: RunAsAny
-  # Privilege Escalation
-  allowPrivilegeEscalation: false
-  defaultAllowPrivilegeEscalation: false
-  # Capabilities
-  allowedCapabilities: ['NET_ADMIN', 'NET_RAW']
-  defaultAddCapabilities: []
-  requiredDropCapabilities: []
-  # Host namespaces
-  hostPID: false
-  hostIPC: false
-  hostNetwork: true
-  hostPorts:
-  - min: 0
-    max: 65535
-  # SELinux
-  seLinux:
-    # SELinux is unused in CaaSP
-    rule: 'RunAsAny'
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: flannel
-rules:
-- apiGroups: ['extensions']
-  resources: ['podsecuritypolicies']
-  verbs: ['use']
-  resourceNames: ['psp.flannel.unprivileged']
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - nodes/status
-  verbs:
-  - patch
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: flannel
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: flannel
-subjects:
-- kind: ServiceAccount
-  name: flannel
-  namespace: kube-system
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: flannel
-  namespace: kube-system
----
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: kube-flannel-cfg
-  namespace: kube-system
-  labels:
-    tier: node
-    app: flannel
-data:
-  cni-conf.json: |
-    {
-      "name": "cbr0",
-      "cniVersion": "0.3.1",
-      "plugins": [
-        {
-          "type": "flannel",
-          "delegate": {
-            "hairpinMode": true,
-            "isDefaultGateway": true
-          }
-        },
-        {
-          "type": "portmap",
-          "capabilities": {
-            "portMappings": true
-          }
-        }
-      ]
-    }
-  net-conf.json: |
-    {
-      "Network": "10.244.0.0/16",
-      "Backend": {
-        "Type": "vxlan"
-      }
-    }
----
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: kube-flannel-ds
-  namespace: kube-system
-  labels:
-    tier: node
-    app: flannel
-spec:
-  selector:
-    matchLabels:
-      app: flannel
-  template:
-    metadata:
-      labels:
-        tier: node
-        app: flannel
-    spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/os
-                operator: In
-                values:
-                - linux
-      hostNetwork: true
-      priorityClassName: system-node-critical
-      tolerations:
-      - operator: Exists
-        effect: NoSchedule
-      serviceAccountName: flannel
-      initContainers:
-      - name: install-cni
-        image: quay.io/coreos/flannel:v0.14.0
-        command:
-        - cp
-        args:
-        - -f
-        - /etc/kube-flannel/cni-conf.json
-        - /etc/cni/net.d/10-flannel.conflist
-        volumeMounts:
-        - name: cni
-          mountPath: /etc/cni/net.d
-        - name: flannel-cfg
-          mountPath: /etc/kube-flannel/
-      containers:
-      - name: kube-flannel
-        image: quay.io/coreos/flannel:v0.14.0
-        command:
-        - /opt/bin/flanneld
-        args:
-        - --ip-masq
-        - --kube-subnet-mgr
-        resources:
-          requests:
-            cpu: "100m"
-            memory: "50Mi"
-          limits:
-            cpu: "100m"
-            memory: "50Mi"
-        securityContext:
-          privileged: false
-          capabilities:
-            add: ["NET_ADMIN", "NET_RAW"]
-        env:
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        volumeMounts:
-        - name: run
-          mountPath: /run/flannel
-        - name: flannel-cfg
-          mountPath: /etc/kube-flannel/
-      volumes:
-      - name: run
-        hostPath:
-          path: /run/flannel
-      - name: cni
-        hostPath:
-          path: /etc/cni/net.d
-      - name: flannel-cfg
-        configMap:
-          name: kube-flannel-cfg
-```
-
-
-
-## 2.8 测试kubernetes 集群
-
-### 2.8.1 部署nginx 测试
-
-```shell
-kubectl create deployment nginx --image=nginx
-
-kubectl expose deployment nginx --port=80 --type=NodePort
-
-kubectl get pod,svc
-```
 
 # 3. 资源管理
 

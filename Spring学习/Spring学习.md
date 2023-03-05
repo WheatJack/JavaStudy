@@ -2854,6 +2854,8 @@ Target001  实现bar method
 
 #### 6.查看JDK生成的Proxy类
 
+> **通过arthas工具去查看进程**
+
 > 默认会代理equal()、toString()、hashcode()
 >
 > 然后会代理自己手写的方法
@@ -2944,6 +2946,409 @@ implements JdkProxyDemo.Foo {
     }
 }
 ```
+
+
+
+#### 7.JDK代理字节码生成
+
+> jdk是通过**asm**来直接动态生成字节码（不需要经过编译）
+>
+> idea 下载 asm bytecode 插件  然后编译文件后 鼠标右击 选择bytecode outline 自动生成代理类
+>
+> 使用 ASM 编辑器，注意IDEA的版本还有使用最新版本的插件（最新的版本不可用）
+
+
+
+**生成好的asm代码**
+
+> 真正的class字节
+
+```java
+
+// class version 52.0 (52)
+// access flags 0x21
+public class com/example/demo/$Proxt0 extends java/lang/reflect/Proxy  implements com/example/demo/Target  {
+
+  // compiled from: $Proxt0.java
+
+  // access flags 0x8
+  static Ljava/lang/reflect/Method; method
+
+  // access flags 0x1
+  public <init>(Ljava/lang/reflect/InvocationHandler;)V
+    // parameter  h
+   L0
+    LINENUMBER 19 L0
+    ALOAD 0
+    ALOAD 1
+    INVOKESPECIAL java/lang/reflect/Proxy.<init> (Ljava/lang/reflect/InvocationHandler;)V
+   L1
+    LINENUMBER 20 L1
+    RETURN
+   L2
+    LOCALVARIABLE this Lcom/example/demo/$Proxt0; L0 L2 0
+    LOCALVARIABLE h Ljava/lang/reflect/InvocationHandler; L0 L2 1
+    MAXSTACK = 2
+    MAXLOCALS = 2
+
+  // access flags 0x1
+  public bar()V
+    TRYCATCHBLOCK L0 L1 L2 java/lang/Throwable
+   L0
+    LINENUMBER 25 L0
+    ALOAD 0
+    GETFIELD com/example/demo/$Proxt0.h : Ljava/lang/reflect/InvocationHandler;
+    ALOAD 0
+    GETSTATIC com/example/demo/$Proxt0.method : Ljava/lang/reflect/Method;
+    ACONST_NULL
+    INVOKEINTERFACE java/lang/reflect/InvocationHandler.invoke (Ljava/lang/Object;Ljava/lang/reflect/Method;[Ljava/lang/Object;)Ljava/lang/Object;
+    POP
+   L1
+    LINENUMBER 28 L1
+    GOTO L3
+   L2
+    LINENUMBER 26 L2
+   FRAME SAME1 java/lang/Throwable
+    ASTORE 1
+   L4
+    LINENUMBER 27 L4
+    ALOAD 1
+    INVOKEVIRTUAL java/lang/Throwable.printStackTrace ()V
+   L3
+    LINENUMBER 30 L3
+   FRAME SAME
+    RETURN
+   L5
+    LOCALVARIABLE e Ljava/lang/Throwable; L4 L3 1
+    LOCALVARIABLE this Lcom/example/demo/$Proxt0; L0 L5 0
+    MAXSTACK = 4
+    MAXLOCALS = 2
+
+  // access flags 0x8
+  static <clinit>()V
+    TRYCATCHBLOCK L0 L1 L2 java/lang/NoSuchMethodException
+   L0
+    LINENUMBER 35 L0
+    LDC Lcom/example/demo/Target;.class
+    LDC "bar"
+    ICONST_0
+    ANEWARRAY java/lang/Class
+    INVOKEVIRTUAL java/lang/Class.getMethod (Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;
+    PUTSTATIC com/example/demo/$Proxt0.method : Ljava/lang/reflect/Method;
+   L1
+    LINENUMBER 38 L1
+    GOTO L3
+   L2
+    LINENUMBER 36 L2
+   FRAME SAME1 java/lang/NoSuchMethodException
+    ASTORE 0
+   L4
+    LINENUMBER 37 L4
+    ALOAD 0
+    INVOKEVIRTUAL java/lang/NoSuchMethodException.printStackTrace ()V
+   L3
+    LINENUMBER 40 L3
+   FRAME SAME
+    RETURN
+    LOCALVARIABLE e Ljava/lang/NoSuchMethodException; L4 L3 0
+    MAXSTACK = 3
+    MAXLOCALS = 1
+}
+
+```
+
+
+
+**可编辑的java asm对象**
+
+> 可以直接执行
+
+```java
+
+public class $Proxt0Dump implements Opcodes {
+
+    public static byte[] dump() throws Exception {
+
+        ClassWriter cw = new ClassWriter(0);
+        FieldVisitor fv;
+        MethodVisitor mv;
+        AnnotationVisitor av0;
+
+        cw.visit(52, ACC_PUBLIC + ACC_SUPER, "com/example/demo/$Proxt0", null, "java/lang/reflect/Proxy", new String[]{"com/example/demo/Target"});
+
+        cw.visitSource("$Proxt0.java", null);
+
+        {
+            fv = cw.visitField(ACC_STATIC, "method", "Ljava/lang/reflect/Method;", null, null);
+            fv.visitEnd();
+        }
+        {
+            mv = cw.visitMethod(ACC_PUBLIC, "<init>", "(Ljava/lang/reflect/InvocationHandler;)V", null, null);
+            mv.visitParameter("h", 0);
+            mv.visitCode();
+            Label l0 = new Label();
+            mv.visitLabel(l0);
+            mv.visitLineNumber(19, l0);
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitVarInsn(ALOAD, 1);
+            mv.visitMethodInsn(INVOKESPECIAL, "java/lang/reflect/Proxy", "<init>", "(Ljava/lang/reflect/InvocationHandler;)V", false);
+            Label l1 = new Label();
+            mv.visitLabel(l1);
+            mv.visitLineNumber(20, l1);
+            mv.visitInsn(RETURN);
+            Label l2 = new Label();
+            mv.visitLabel(l2);
+            mv.visitLocalVariable("this", "Lcom/example/demo/$Proxt0;", null, l0, l2, 0);
+            mv.visitLocalVariable("h", "Ljava/lang/reflect/InvocationHandler;", null, l0, l2, 1);
+            mv.visitMaxs(2, 2);
+            mv.visitEnd();
+        }
+        {
+            mv = cw.visitMethod(ACC_PUBLIC, "bar", "()V", null, null);
+            mv.visitCode();
+            Label l0 = new Label();
+            Label l1 = new Label();
+            Label l2 = new Label();
+            mv.visitTryCatchBlock(l0, l1, l2, "java/lang/Throwable");
+            mv.visitLabel(l0);
+            mv.visitLineNumber(25, l0);
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitFieldInsn(GETFIELD, "com/example/demo/$Proxt0", "h", "Ljava/lang/reflect/InvocationHandler;");
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitFieldInsn(GETSTATIC, "com/example/demo/$Proxt0", "method", "Ljava/lang/reflect/Method;");
+            mv.visitInsn(ACONST_NULL);
+            mv.visitMethodInsn(INVOKEINTERFACE, "java/lang/reflect/InvocationHandler", "invoke", "(Ljava/lang/Object;Ljava/lang/reflect/Method;[Ljava/lang/Object;)Ljava/lang/Object;", true);
+            mv.visitInsn(POP);
+            mv.visitLabel(l1);
+            mv.visitLineNumber(28, l1);
+            Label l3 = new Label();
+            mv.visitJumpInsn(GOTO, l3);
+            mv.visitLabel(l2);
+            mv.visitLineNumber(26, l2);
+            mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[]{"java/lang/Throwable"});
+            mv.visitVarInsn(ASTORE, 1);
+            Label l4 = new Label();
+            mv.visitLabel(l4);
+            mv.visitLineNumber(27, l4);
+            mv.visitVarInsn(ALOAD, 1);
+            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Throwable", "printStackTrace", "()V", false);
+            mv.visitLabel(l3);
+            mv.visitLineNumber(30, l3);
+            mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+            mv.visitInsn(RETURN);
+            Label l5 = new Label();
+            mv.visitLabel(l5);
+            mv.visitLocalVariable("e", "Ljava/lang/Throwable;", null, l4, l3, 1);
+            mv.visitLocalVariable("this", "Lcom/example/demo/$Proxt0;", null, l0, l5, 0);
+            mv.visitMaxs(4, 2);
+            mv.visitEnd();
+        }
+        {
+            mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
+            mv.visitCode();
+            Label l0 = new Label();
+            Label l1 = new Label();
+            Label l2 = new Label();
+            mv.visitTryCatchBlock(l0, l1, l2, "java/lang/NoSuchMethodException");
+            mv.visitLabel(l0);
+            mv.visitLineNumber(35, l0);
+            mv.visitLdcInsn(    Type.getType("Lcom/example/demo/Target;"));
+            mv.visitLdcInsn("bar");
+            mv.visitInsn(ICONST_0);
+            mv.visitTypeInsn(ANEWARRAY, "java/lang/Class");
+            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Class", "getMethod", "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;", false);
+            mv.visitFieldInsn(PUTSTATIC, "com/example/demo/$Proxt0", "method", "Ljava/lang/reflect/Method;");
+            mv.visitLabel(l1);
+            mv.visitLineNumber(38, l1);
+            Label l3 = new Label();
+            mv.visitJumpInsn(GOTO, l3);
+            mv.visitLabel(l2);
+            mv.visitLineNumber(36, l2);
+            mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[]{"java/lang/NoSuchMethodException"});
+            mv.visitVarInsn(ASTORE, 0);
+            Label l4 = new Label();
+            mv.visitLabel(l4);
+            mv.visitLineNumber(37, l4);
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/NoSuchMethodException", "printStackTrace", "()V", false);
+            mv.visitLabel(l3);
+            mv.visitLineNumber(40, l3);
+            mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+            mv.visitInsn(RETURN);
+            mv.visitLocalVariable("e", "Ljava/lang/NoSuchMethodException;", null, l4, l3, 0);
+            mv.visitMaxs(3, 1);
+            mv.visitEnd();
+        }
+        cw.visitEnd();
+
+        return cw.toByteArray();
+    }
+}
+
+```
+
+上述代码解析：
+
+![image-20230227205909435](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230227205909435.png)
+
+
+
+**1.测试类- 手动转成proxy对象**
+
+```java
+ 				 byte[] dump = $Proxt0Dump.dump();
+        FileOutputStream fileOutputStream = new FileOutputStream("$Proxy0.class");
+        fileOutputStream.write(dump,0,dump.length);
+        fileOutputStream.close();
+```
+
+**输出的文件对象：**
+
+> *就是手写的代理类*
+
+```java
+public class $Proxy0 extends Proxy implements Target {
+    static Method method;
+
+    public $Proxy0(InvocationHandler h) {
+        super(h);
+    }
+
+    public void bar() {
+        try {
+            this.h.invoke(this, method, (Object[])null);
+        } catch (Throwable var2) {
+            var2.printStackTrace();
+        }
+
+    }
+
+    static {
+        try {
+            method = Target.class.getMethod("bar");
+        } catch (NoSuchMethodException var1) {
+            var1.printStackTrace();
+        }
+
+    }
+}
+```
+
+
+
+##### 1.使用代码去生成代码
+
+> 根据生成asm代码去生成我们要的代理类代码
+
+```java
+public class Test$Proxy0Dump {
+
+
+    public static void main(String[] args) throws Exception {
+        // 字节码
+        byte[] dump = $Proxt0Dump.dump();
+//        FileOutputStream fileOutputStream = new FileOutputStream("$Proxy0.class");
+//        fileOutputStream.write(dump,0,dump.length);
+//        fileOutputStream.close();
+
+        // new 一个类加载器出来
+        ClassLoader classLoader = new ClassLoader() {
+            @Override
+            protected Class<?> findClass(String name) throws ClassNotFoundException {
+                return super.defineClass(name, dump, 0, dump.length);
+            }
+        };
+        // 创建实例
+        Class<?> aClass = classLoader.loadClass("com.example.demo.$Proxy0");
+        // 类对象 反射 拿到类对象
+        Constructor<?> constructor = aClass.getConstructor(InvocationHandler.class);
+        B13 proxy = (B13) constructor.newInstance(new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                System.out.println("before");
+                System.out.println("after");
+                return null;
+            }
+        });
+        // 调用目标方法
+        proxy.foo();
+    }
+}
+```
+
+
+
+
+
+
+
+
+
+#### 变量知识点
+
+| 变量类型 | 定义位置       | 默认值     | 在内存中的位置   | 生命周期                               |
+| -------- | -------------- | ---------- | ---------------- | -------------------------------------- |
+| 成员变量 | 类中，方法外部 | 有默认值   | 位于堆内存       | 方法进栈而存在，方法出栈而消失         |
+| 局部变量 | 方法内         | 无默认值   | 位于栈内存       | 对象创建而存在，对象被回收而消失       |
+| 静态变量 | 方法外部       | 具有默认值 | 位于方法的静态区 | 随着类的加载而加载，随着类的消失而消失 |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
