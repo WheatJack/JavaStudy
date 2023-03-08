@@ -1456,7 +1456,7 @@ spec:
 
 在kubernetes中Pod控制器的种类有很多，本章节只介绍一种：Deployment。
 
-![image-20200408193950807](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gya55fjj30l90bm3zh.jpg)
+![image-20200408193950807](./Kubenetes.assets/20230307.png)
 
 **命令操作**
 
@@ -1466,6 +1466,9 @@ spec:
 # --port   指定端口
 # --replicas  指定创建pod数量
 # --namespace  指定namespace
+# ##老版本使用是run
+[root@master ~]# kubectl run deploy nginx --image=nginx:latest --port=80 --replicas=3 -n dev
+# ##新版本使用是run
 [root@master ~]# kubectl create deploy nginx --image=nginx:latest --port=80 --replicas=3 -n dev
 deployment.apps/nginx created
 
@@ -1560,24 +1563,26 @@ spec:
 
 删除：kubectl delete -f deploy-nginx.yaml
 
+
+
 ## 4.5 Service
 
 通过上节课的学习，已经能够利用Deployment来创建一组Pod来提供具有高可用性的服务。
 
 虽然每个Pod都会分配一个单独的Pod IP，然而却存在如下两问题：
 
-- Pod IP 会随着Pod的重建产生变化
+- **Pod IP 会随着Pod的重建产生变化**
 - Pod IP 仅仅是集群内可见的虚拟IP，外部无法访问
 
 这样对于访问这个服务带来了难度。因此，kubernetes设计了Service来解决这个问题。
 
 Service可以看作是一组同类Pod**对外的访问接口**。借助Service，应用可以方便地实现服务发现和负载均衡。
 
-![image-20200408194716912](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gydwoj8j30tt0dtq4q.jpg)
+![image-20200408194716912](./Kubenetes.assets/20230307-1.png)
+
+
 
 **操作一：创建集群内部可访问的Service**
-
-
 
 ```shell
 # 暴露Service
@@ -1604,6 +1609,8 @@ svc-nginx1   ClusterIP   10.109.179.231   <none>        80/TCP    3m51s   run=ng
 </html>
 ```
 
+
+
 **操作二：创建集群外部也可访问的Service**
 
 ```shell
@@ -1619,7 +1626,7 @@ svc-nginx2    NodePort    10.100.94.0      <none>        80:31928/TCP   9s     r
 
 # 接下来就可以通过集群外的主机访问 节点IP:31928访问服务了
 # 例如在的电脑主机上通过浏览器访问下面的地址
-http://192.168.5.4:31928/
+http://192.168.191.158:31928/
 ```
 
 **删除Service**
