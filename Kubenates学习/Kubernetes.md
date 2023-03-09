@@ -1670,11 +1670,13 @@ spec:
 
 # 5. Pod详解
 
+> 本章节将详细介绍Pod资源的各种配置（yaml）和原理
+
 ## 5.1 Pod介绍
 
 ### 5.1.1 Pod结构
 
-![image-20200407121501907](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gyi2hikj30hl0cw0te.jpg)
+![image-20200407121501907](./Kubenetes.assets/20230308-1.png)
 
 每个Pod中都可以包含一个或者多个容器，这些容器可以分为两类：
 
@@ -1689,6 +1691,8 @@ spec:
     ```
     这里是Pod内部的通讯，Pod的之间的通讯采用虚拟二层网络技术来实现，我们当前环境用的是Flannel
     ```
+
+
 
 ### 5.1.2 Pod定义
 
@@ -1830,11 +1834,11 @@ FIELDS:
 - volumes <[]Object> 存储卷，用于定义Pod上面挂在的存储信息
 - restartPolicy <string> 重启策略，表示Pod在遇到故障的时候的处理策略
 
+
+
 ## 5.2 Pod配置
 
 本小节主要来研究`pod.spec.containers`属性，这也是pod配置中最为关键的一项配置。
-
-
 
 ```shell
 [root@k8s-master01 ~]# kubectl explain pod.spec.containers
@@ -1852,11 +1856,11 @@ FIELDS:
    resources <Object>      # 资源限制和资源请求的设置
 ```
 
+
+
 ### 5.2.1 基本配置
 
 创建pod-base.yaml文件，内容如下：
-
-
 
 ```yaml
 apiVersion: v1
@@ -1874,14 +1878,10 @@ spec:
     image: busybox:1.30
 ```
 
-![image-20210617223823675](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gynp00kj30bx01uaa6.jpg)
-
 上面定义了一个比较简单Pod的配置，里面有两个容器：
 
 - nginx：用1.17.1版本的nginx镜像创建，（nginx是一个轻量级web容器）
 - busybox：用1.30版本的busybox镜像创建，（busybox是一个小巧的linux命令集合）
-
-
 
 ```shell
 # 创建Pod
@@ -1900,11 +1900,11 @@ pod-base   1/2     Running   4          95s
 [root@k8s-master01 pod]# kubectl describe pod pod-base -n dev
 ```
 
+
+
 ### 5.2.2 镜像拉取
 
 创建pod-imagepullpolicy.yaml文件，内容如下：
-
-
 
 ```yaml
 apiVersion: v1
@@ -1920,8 +1920,6 @@ spec:
   - name: busybox
     image: busybox:1.30
 ```
-
-![image-20210617223923659](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gyrrlwzj30dr027t8y.jpg)
 
 imagePullPolicy，用于设置镜像拉取策略，kubernetes支持配置三种拉取策略：
 
@@ -1959,6 +1957,8 @@ Events:
   Normal   Started    7s (x3 over 25s)  kubelet, node1     Started container busybox
 ```
 
+
+
 ### 5.2.3 启动命令
 
 在前面的案例中，一直有一个问题没有解决，就是的busybox容器一直没有成功运行，那么到底是什么原因导致这个容器的故障呢？
@@ -1966,8 +1966,6 @@ Events:
 原来busybox并不是一个程序，而是类似于一个工具类的集合，kubernetes集群启动管理后，它会自动关闭。解决方法就是让其一直在运行，这就用到了command配置。
 
 创建pod-command.yaml文件，内容如下：
-
-
 
 ```yaml
 apiVersion: v1
@@ -1983,8 +1981,6 @@ spec:
     image: busybox:1.30
     command: ["/bin/sh","-c","touch /tmp/hello.txt;while true;do /bin/echo $(date +%T) >> /tmp/hello.txt; sleep 3; done;"]
 ```
-
-![image-20210617224457945](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gywjczij30dt02paae.jpg)
 
 command，用于在pod中的容器初始化完毕之后运行一个命令。
 
@@ -2068,6 +2064,8 @@ admin
 
 这种方式不是很推荐，推荐将这些配置单独存储在配置文件中，这种方式将在后面介绍。
 
+
+
 ### 5.2.5 端口设置
 
 本小节来介绍容器的端口设置，也就是containers的ports选项。
@@ -2127,6 +2125,8 @@ spec:
 ```
 
 访问容器中的程序需要使用的是`Podip:containerPort`
+
+
 
 ### 5.2.6 资源配额
 
@@ -2195,6 +2195,8 @@ pod-resources   0/1     Pending   0          20s
 Warning  FailedScheduling  35s   default-scheduler  0/3 nodes are available: 1 node(s) had taint {node-role.kubernetes.io/master: }, that the pod didn't tolerate, 2 Insufficient memory.(内存不足)
 ```
 
+
+
 ## 5.3 Pod生命周期
 
 我们一般将pod对象从创建至终的这段时间范围称为pod的生命周期，它主要包含下面的过程：
@@ -2206,15 +2208,17 @@ Warning  FailedScheduling  35s   default-scheduler  0/3 nodes are available: 1 n
   - 容器的存活性探测（liveness probe）、就绪性探测（readiness probe）
 - pod终止过程
 
-![image-20200412111402706](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gz1qxumj30t90f8abr.jpg)
+![image-20200412111402706](./Kubenetes.assets/2023-030802.png)
 
 在整个生命周期中，Pod会出现5种**状态**（**相位**），分别如下：
 
-- 挂起（Pending）：apiserver已经创建了pod资源对象，但它尚未被调度完成或者仍处于下载镜像的过程中
-- 运行中（Running）：pod已经被调度至某节点，并且所有容器都已经被kubelet创建完成
-- 成功（Succeeded）：pod中的所有容器都已经成功终止并且不会被重启
-- 失败（Failed）：所有容器都已经终止，但至少有一个容器终止失败，即容器返回了非0值的退出状态
-- 未知（Unknown）：apiserver无法正常获取到pod对象的状态信息，通常由网络通信失败所导致
+- 挂起（**Pending**）：apiserver已经创建了pod资源对象，但它尚未被调度完成或者仍处于下载镜像的过程中
+- 运行中（**Running**）：pod已经被调度至某节点，并且所有容器都已经被kubelet创建完成
+- 成功（**Succeeded**）：pod中的所有容器都已经成功终止并且不会被重启
+- 失败（**Failed**）：所有容器都已经终止，但至少有一个容器终止失败，即容器返回了非0值的退出状态
+- 未知（**Unknown**）：apiserver无法正常获取到pod对象的状态信息，通常由网络通信失败所导致
+
+
 
 ### 5.3.1 创建和终止
 
@@ -2224,7 +2228,7 @@ Warning  FailedScheduling  35s   default-scheduler  0/3 nodes are available: 1 n
 
 2. apiServer开始生成pod对象的信息，并将信息存入etcd，然后返回确认信息至客户端
 
-3. apiServer开始反映etcd中的pod对象的变化，其它组件使用watch机制来跟踪检查apiServer上的变动
+3. apiServer开始反映etcd中的pod对象的变化，其它组件使用**watch**机制来跟踪检查apiServer上的变动
 
 4. scheduler发现有新的pod对象要创建，开始为Pod分配主机并将结果信息更新至apiServer
 
@@ -2232,7 +2236,9 @@ Warning  FailedScheduling  35s   default-scheduler  0/3 nodes are available: 1 n
 
 6. apiServer将接收到的pod状态信息存入etcd中
 
-   ![image-20200406184656917](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gz5mu0ej313w0kpwhr.jpg)
+   ![image-20200406184656917](./Kubenetes.assets/2023030804.png)
+
+
 
 **pod的终止过程**
 
@@ -2245,6 +2251,8 @@ Warning  FailedScheduling  35s   default-scheduler  0/3 nodes are available: 1 n
 7. pod对象中的容器进程收到停止信号
 8. 宽限期结束后，若pod中还存在仍在运行的进程，那么pod对象会收到立即终止的信号
 9. kubelet请求apiServer将此pod资源的宽限期设置为0从而完成删除操作，此时pod对于用户已不可见
+
+
 
 ### 5.3.2 初始化容器
 
@@ -2325,8 +2333,8 @@ pod-initcontainer                1/1     Running           0          90s
 
 kubernetes在主容器的启动之后和停止之前提供了两个钩子函数：
 
-- post start：容器创建之后执行，如果失败了会重启容器
-- pre stop ：容器终止之前执行，执行完成之后容器将成功终止，在其完成之前会阻塞删除容器的操作
+- **post start**：容器创建之后执行，如果失败了会重启容器
+- **pre stop** ：容器终止之前执行，执行完成之后容器将成功终止，在其完成之前会阻塞删除容器的操作
 
 钩子处理器支持使用下面三种方式定义动作：
 
@@ -2407,18 +2415,20 @@ pod-hook-exec  1/1     Running    0          29s    10.244.2.48   node2
 postStart...
 ```
 
+
+
 ### 5.3.4 容器探测
 
 容器探测用于检测容器中的应用实例是否正常工作，是保障业务可用性的一种传统机制。如果经过探测，实例的状态不符合预期，那么kubernetes就会把该问题实例" 摘除 "，不承担业务流量。kubernetes提供了两种探针来实现容器探测，分别是：
 
-- liveness probes：存活性探针，用于检测应用实例当前是否处于正常运行状态，如果不是，k8s会重启容器
-- readiness probes：就绪性探针，用于检测应用实例当前是否可以接收请求，如果不能，k8s不会转发流量
+- **liveness probes**：存活性探针，用于检测应用实例当前是否处于正常运行状态，如果不是，k8s会重启容器
+- **readiness probes**：就绪性探针，用于检测应用实例当前是否可以接收请求，如果不能，k8s不会转发流量
 
 > livenessProbe 决定是否重启容器，readinessProbe 决定是否将请求转发给容器。
 
 上面两种探针目前均支持三种探测方式：
 
-- Exec命令：在容器内执行一次命令，如果命令执行的退出码为0，则认为程序正常，否则不正常
+- **Exec命令**：在容器内执行一次命令，如果命令执行的退出码为0，则认为程序正常，否则不正常
 
   ```yaml
   ……
@@ -2430,7 +2440,7 @@ postStart...
   ……
   ```
   
-- TCPSocket：将会尝试访问一个用户容器的端口，如果能够建立这条连接，则认为程序正常，否则不正常
+- **TCPSocket**：将会尝试访问一个用户容器的端口，如果能够建立这条连接，则认为程序正常，否则不正常
 
   ```yaml
   ……      
@@ -2440,7 +2450,7 @@ postStart...
   ……
   ```
   
-- HTTPGet：调用容器内Web应用的URL，如果返回的状态码在200和399之间，则认为程序正常，否则不正常
+- **HTTPGet**：调用容器内Web应用的URL，如果返回的状态码在200和399之间，则认为程序正常，否则不正常
 
   ```yaml
   ……
@@ -2638,6 +2648,8 @@ spec:
       timeoutSeconds: 5 # 探测超时时间为5s
 ```
 
+
+
 ### 5.3.5 重启策略
 
 在上一节中，一旦容器探测出现了问题，kubernetes就会对容器所在的Pod进行重启，其实这是由pod的重启策略决定的，pod的重启策略有 3 种，分别如下：
@@ -2689,6 +2701,8 @@ pod/pod-restartpolicy created
 NAME                   READY   STATUS    RESTARTS   AGE
 pod-restartpolicy      0/1     Running   0          5min42s
 ```
+
+
 
 ## 5.4 Pod调度
 
