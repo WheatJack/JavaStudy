@@ -2706,18 +2706,24 @@ pod-restartpolicy      0/1     Running   0          5min42s
 
 ## 5.4 Pod调度
 
-在默认情况下，一个Pod在哪个Node节点上运行，是由Scheduler组件采用相应的算法计算出来的，这个过程是不受人工控制的。但是在实际使用中，这并不满足的需求，因为很多情况下，我们想控制某些Pod到达某些节点上，那么应该怎么做呢？这就要求了解kubernetes对Pod的调度规则，kubernetes提供了四大类调度方式：
+在默认情况下，一个Pod在哪个Node节点上运行，是由**Scheduler组件**采用相应的算法计算出来的，这个过程是不受人工控制的。但是在实际使用中，这并不满足的需求，因为很多情况下，我们想控制某些Pod到达某些节点上，那么应该怎么做呢？这就要求了解kubernetes对Pod的调度规则，kubernetes提供了四大类调度方式：
 
-- 自动调度：运行在哪个节点上完全由Scheduler经过一系列的算法计算得出
-- 定向调度：NodeName、NodeSelector
-- 亲和性调度：NodeAffinity、PodAffinity、PodAntiAffinity
-- 污点（容忍）调度：Taints、Toleration
+- **自动调度**：运行在哪个节点上完全由Scheduler经过一系列的算法计算得出
+- **定向调度**：NodeName、NodeSelector
+- **亲和性调度**：NodeAffinity、PodAffinity、PodAntiAffinity
+- **污点（容忍）调度**：Taints、Toleration
+
+
+
+
 
 ### 5.4.1 定向调度
 
 定向调度，指的是利用在pod上声明nodeName或者nodeSelector，以此将Pod调度到期望的node节点上。注意，这里的调度是强制的，这就意味着即使要调度的目标Node不存在，也会向上面进行调度，只不过pod运行失败而已。
 
-**NodeName**
+
+
+#### **5.4.1.1 NodeName**
 
 NodeName用于强制约束将Pod调度到指定的Name的Node节点上。这种方式，其实是直接跳过Scheduler的调度逻辑，直接将Pod调度到指定名称的节点。
 
@@ -2759,7 +2765,9 @@ NAME           READY   STATUS    RESTARTS   AGE   IP       NODE    ......
 pod-nodename   0/1     Pending   0          6s    <none>   node3   ......           
 ```
 
-**NodeSelector**
+
+
+#### **5.4.1.2 NodeSelector**
 
 NodeSelector用于将pod调度到添加了指定标签的node节点上。它是通过kubernetes的label-selector机制实现的，也就是说，在pod创建之前，会由scheduler使用MatchNodeSelector调度策略进行label匹配，找出目标node，然后将pod调度到目标节点，该匹配规则是强制约束。
 
@@ -2821,6 +2829,8 @@ Events:
   Warning  FailedScheduling  <unknown>  default-scheduler  0/3 nodes are available: 3 node(s) didn't match node selector.
 ```
 
+
+
 ### 5.4.2 亲和性调度
 
 上一节，介绍了两种定向调度的方式，使用起来非常方便，但是也有一定的问题，那就是如果没有满足条件的Node，那么Pod将不会被运行，即使在集群中还有可用Node列表也不行，这就限制了它的使用场景。
@@ -2829,9 +2839,9 @@ Events:
 
 Affinity主要分为三类：
 
-- nodeAffinity(node亲和性）: 以node为目标，解决pod可以调度到哪些node的问题
-- podAffinity(pod亲和性) : 以pod为目标，解决pod可以和哪些已存在的pod部署在同一个拓扑域中的问题
-- podAntiAffinity(pod反亲和性) : 以pod为目标，解决pod不能和哪些已存在pod部署在同一个拓扑域中的问题
+- **nodeAffinity**(node亲和性）: 以node为目标，解决pod可以调度到哪些node的问题
+- **podAffinity**(pod亲和性) : 以pod为目标，解决pod可以和哪些已存在的pod部署在同一个拓扑域中的问题
+- **podAntiAffinity**(pod反亲和性) : 以pod为目标，解决pod不能和哪些已存在pod部署在同一个拓扑域中的问题
 
 > 关于亲和性(反亲和性)使用场景的说明：
 >
@@ -2839,11 +2849,11 @@ Affinity主要分为三类：
 >
 > **反亲和性**：当应用的采用多副本部署时，有必要采用反亲和性让各个应用实例打散分布在各个node上，这样可以提高服务的高可用性。
 
-**NodeAffinity**
+#### **5.4.2.1 NodeAffinity**
 
 首先来看一下`NodeAffinity`的可配置项：
 
-```shell
+```markdown
 pod.spec.affinity.nodeAffinity
   requiredDuringSchedulingIgnoredDuringExecution  Node节点必须满足指定的所有规则才可以，相当于硬限制
     nodeSelectorTerms  节点选择列表
@@ -2978,13 +2988,13 @@ NodeAffinity规则设置的注意事项：
     4 如果一个pod所在的Node在Pod运行期间其标签发生了改变，不再符合该Pod的节点亲和性需求，则系统将忽略此变化
 ```
 
-**PodAffinity**
+#### **5.4.2.2 PodAffinity**
 
 PodAffinity主要实现以运行的Pod为参照，实现让新创建的Pod跟参照pod在一个区域的功能。
 
 首先来看一下`PodAffinity`的可配置项：
 
-```shell
+```markdown
 pod.spec.affinity.podAffinity
   requiredDuringSchedulingIgnoredDuringExecution  硬限制
     namespaces       指定参照pod的namespace
@@ -3011,7 +3021,7 @@ pod.spec.affinity.podAffinity
 ```
 topologyKey用于指定调度时作用域,例如:
     如果指定为kubernetes.io/hostname，那就是以Node节点为区分范围
-	如果指定为beta.kubernetes.io/os,则以Node节点的操作系统类型来区分
+	  如果指定为beta.kubernetes.io/os,则以Node节点的操作系统类型来区分
 ```
 
 接下来，演示下`requiredDuringSchedulingIgnoredDuringExecution`,
@@ -3105,7 +3115,9 @@ pod-podaffinity-required   1/1     Running   0          6s    <none>
 
 关于`PodAffinity`的 `preferredDuringSchedulingIgnoredDuringExecution`，这里不再演示。
 
-**PodAntiAffinity**
+
+
+#### **5.4.2.3 PodAntiAffinity**
 
 PodAntiAffinity主要实现以运行的Pod为参照，让新创建的Pod跟参照pod不在一个区域中的功能。
 
@@ -3157,9 +3169,11 @@ NAME                           READY   STATUS    RESTARTS   AGE   IP            
 pod-podantiaffinity-required   1/1     Running   0          30s   10.244.1.96   node2  ..
 ```
 
+
+
 ### 5.4.3 污点和容忍
 
-**污点（Taints）**
+#### **5.4.3.1 污点（Taints）**
 
 前面的调度方式都是站在Pod的角度上，通过在Pod上添加属性，来确定Pod是否要调度到指定的Node上，其实我们也可以站在Node的角度上，通过在Node上添加**污点**属性，来决定是否允许Pod调度过来。
 
@@ -3167,11 +3181,11 @@ Node被设置上污点之后就和Pod之间存在了一种相斥的关系，进�
 
 污点的格式为：`key=value:effect`, key和value是污点的标签，effect描述污点的作用，支持如下三个选项：
 
-- PreferNoSchedule：kubernetes将尽量避免把Pod调度到具有该污点的Node上，除非没有其他节点可调度
-- NoSchedule：kubernetes将不会把Pod调度到具有该污点的Node上，但不会影响当前Node上已存在的Pod
-- NoExecute：kubernetes将不会把Pod调度到具有该污点的Node上，同时也会将Node上已存在的Pod驱离
+- **PreferNoSchedule**：kubernetes将尽量避免把Pod调度到具有该污点的Node上，除非没有其他节点可调度
+- **NoSchedule**：kubernetes将不会把Pod调度到具有该污点的Node上，但不会影响当前Node上已存在的Pod
+- **NoExecute**：kubernetes将不会把Pod调度到具有该污点的Node上，同时也会将Node上已存在的Pod驱离
 
-![image-20200605021606508](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gzkgqbjj30j8043q3c.jpg)
+![image-20200605021606508](./Kubenetes.assets/20230311-01.png)
 
 使用kubectl设置和去除污点的命令示例如下：
 
@@ -3232,11 +3246,13 @@ taint3-6d78dbd749-tktkq   0/1     Pending   0          6s    <none>   <none>   <
     使用kubeadm搭建的集群，默认就会给master节点添加一个污点标记,所以pod就不会调度到master节点上.
 ```
 
-**容忍（Toleration）**
+
+
+#### **5.4.3.2 容忍（Toleration）**
 
 上面介绍了污点的作用，我们可以在node上添加污点用于拒绝pod调度上来，但是如果就是想将一个pod调度到一个有污点的node上去，这时候应该怎么做呢？这就要使用到**容忍**。
 
-![image-20200514095913741](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gzpiycoj30sb09cwff.jpg)
+![image-20200514095913741](./Kubenetes.assets/20230311-2.png)
 
 > 污点就是拒绝，容忍就是忽略，Node通过污点拒绝pod调度上去，Pod通过容忍忽略拒绝
 
