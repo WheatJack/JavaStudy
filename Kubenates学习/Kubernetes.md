@@ -3332,8 +3332,8 @@ FIELDS:
 
 Pod是kubernetes的最小管理单元，在kubernetes中，按照pod的创建方式可以将其分为两类：
 
-- 自主式pod：kubernetes直接创建出来的Pod，这种pod删除后就没有了，也不会重建
-- 控制器创建的pod：kubernetes通过控制器创建的pod，这种pod删除了之后还会自动重建
+- **自主式pod**：kubernetes直接创建出来的Pod，这种pod删除后就没有了，也不会重建
+- **控制器创建的pod**：kubernetes通过控制器创建的pod，这种pod删除了之后还会自动重建
 
 > **`什么是Pod控制器`**
 >
@@ -3341,20 +3341,22 @@ Pod是kubernetes的最小管理单元，在kubernetes中，按照pod的创建方
 
 在kubernetes中，有很多类型的pod控制器，每种都有自己的适合的场景，常见的有下面这些：
 
-- ReplicationController：比较原始的pod控制器，已经被**废弃**，由ReplicaSet替代
+- ~~ReplicationController：比较原始的pod控制器，已经被**废弃**，由ReplicaSet替代~~
 - ReplicaSet：保证副本数量一直维持在期望值，并支持pod数量扩缩容，镜像版本升级
-- Deployment：通过控制ReplicaSet来控制Pod，并支持滚动升级、回退版本
-- Horizontal Pod Autoscaler：可以根据集群负载自动水平调整Pod的数量，实现削峰填谷
-- DaemonSet：在集群中的指定Node上运行且仅运行一个副本，一般用于守护进程类的任务
-- Job：它创建出来的pod只要完成任务就立即退出，不需要重启或重建，用于执行一次性任务
-- Cronjob：它创建的Pod负责周期性任务控制，不需要持续后台运行
-- StatefulSet：管理有状态应用
+- **Deployment**：通过控制ReplicaSet来控制Pod，并支持滚动升级、回退版本
+- **Horizontal Pod Autoscaler（HPA）**：可以根据集群负载自动水平调整Pod的数量，实现削峰填谷
+- DaemonSet：在集群中的指定Node上运行且仅运行一个副本，一般**用于守护进程类**的任务
+- **Job**：它创建出来的pod只要完成任务就立即退出，不需要重启或重建，用于**执行一次性**任务
+- **Cronjob**：它创建的Pod负责周期性任务控制，不需要持续后台运行
+- **StatefulSet**：管理有状态应用 
+
+
 
 ## 6.2 ReplicaSet(RS)
 
 ReplicaSet的主要作用是**保证一定数量的pod正常运行**，它会持续监听这些Pod的运行状态，一旦Pod发生故障，就会重启或重建。同时它还支持对pod数量的扩缩容和镜像版本的升降级。
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gztv5ppj30go055aab.jpg)
+![img](./Kubenetes.assets/20230311-02.png)
 
 ReplicaSet的资源清单文件：
 
@@ -3526,6 +3528,8 @@ pc-replicaset-dslhb   1/1     Running   0          75s
 [root@k8s-master01 ~]# kubectl delete -f pc-replicaset.yaml
 replicaset.apps "pc-replicaset" deleted
 ```
+
+
 
 ## 6.3 Deployment(Deploy)
 
