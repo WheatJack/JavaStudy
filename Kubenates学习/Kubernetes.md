@@ -3326,6 +3326,8 @@ FIELDS:
 
 # 6. Pod控制器详解
 
+
+
 ## 6.1 Pod控制器介绍
 
 Pod是kubernetes的最小管理单元，在kubernetes中，按照pod的创建方式可以将其分为两类：
@@ -3339,7 +3341,7 @@ Pod是kubernetes的最小管理单元，在kubernetes中，按照pod的创建方
 
 在kubernetes中，有很多类型的pod控制器，每种都有自己的适合的场景，常见的有下面这些：
 
-- ReplicationController：比较原始的pod控制器，已经被废弃，由ReplicaSet替代
+- ReplicationController：比较原始的pod控制器，已经被**废弃**，由ReplicaSet替代
 - ReplicaSet：保证副本数量一直维持在期望值，并支持pod数量扩缩容，镜像版本升级
 - Deployment：通过控制ReplicaSet来控制Pod，并支持滚动升级、回退版本
 - Horizontal Pod Autoscaler：可以根据集群负载自动水平调整Pod的数量，实现削峰填谷
