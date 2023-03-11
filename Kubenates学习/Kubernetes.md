@@ -510,6 +510,17 @@ KUBE_PROXY_MODE="ipvs"
 
 
 
+#### 2.2.6.1 K8s 命令自动补全插件
+
+```shell
+yum install bash-completion -y   #下载包文件
+source /usr/share/bash-completion/bash_completion    #生效
+source <(kubectl completion bash)  
+echo "source <(kubectl completion bash)" >> ~/.bashrc  #永久生效
+```
+
+
+
 ### 2.2.6 集群初始化
 
 下面开始对集群进行初始化，并将node节点加入到集群中
@@ -2839,15 +2850,17 @@ Events:
 
 Affinity主要分为三类：
 
-- **nodeAffinity**(node亲和性）: 以node为目标，解决pod可以调度到哪些node的问题
-- **podAffinity**(pod亲和性) : 以pod为目标，解决pod可以和哪些已存在的pod部署在同一个拓扑域中的问题
-- **podAntiAffinity**(pod反亲和性) : 以pod为目标，解决pod不能和哪些已存在pod部署在同一个拓扑域中的问题
+- **nodeAffinity(node亲和性）**: 以node为目标，解决pod可以调度到哪些node的问题
+- **podAffinity(pod亲和性)** : 以pod为目标，解决pod可以和哪些已存在的pod部署在同一个拓扑域中的问题
+- **podAntiAffinity(pod反亲和性) **: 以pod为目标，解决pod不能和哪些已存在pod部署在同一个拓扑域中的问题
 
 > 关于亲和性(反亲和性)使用场景的说明：
 >
-> **亲和性**：如果两个应用频繁交互，那就有必要利用亲和性让两个应用的尽可能的靠近，这样可以减少因网络通信而带来的性能损耗。
+> **亲和性**：如果两个应用频繁交互，那就有必要**利用亲和性让两个应用的尽可能的靠近**，这样可以**减少因网络通信而带来的性能损耗**。
 >
-> **反亲和性**：当应用的采用多副本部署时，有必要采用反亲和性让各个应用实例打散分布在各个node上，这样可以提高服务的高可用性。
+> **反亲和性**：当应用的采用多副本部署时，有必要采用反亲和性让各个应用实例打散分布在各个node上，这样可以**提高服务的高可用性**。
+
+
 
 #### **5.4.2.1 NodeAffinity**
 
@@ -2987,6 +3000,10 @@ NodeAffinity规则设置的注意事项：
     3 如果一个nodeSelectorTerms中有多个matchExpressions ，则一个节点必须满足所有的才能匹配成功
     4 如果一个pod所在的Node在Pod运行期间其标签发生了改变，不再符合该Pod的节点亲和性需求，则系统将忽略此变化
 ```
+
+
+
+
 
 #### **5.4.2.2 PodAffinity**
 
