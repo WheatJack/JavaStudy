@@ -4383,7 +4383,7 @@ spec: # 详情描述
   concurrencyPolicy: # 并发执行策略，用于定义前一次作业运行尚未完成时是否以及如何运行后一次的作业
   failedJobHistoryLimit: # 为失败的任务执行保留的历史记录数，默认为1
   successfulJobHistoryLimit: # 为成功的任务执行保留的历史记录数，默认为3
-  startingDeadlineSeconds: # 启动作业错误的超时时长
+    startingDeadlineSeconds: # 启动作业错误的超时时长
   jobTemplate: # job控制器模板，用于为cronjob控制器生成job对象;下面其实就是job的定义
     metadata:
     spec:
