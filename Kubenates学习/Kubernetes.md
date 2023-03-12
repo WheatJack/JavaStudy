@@ -3531,11 +3531,13 @@ replicaset.apps "pc-replicaset" deleted
 
 
 
+
+
 ## 6.3 Deployment(Deploy)
 
 为了更好的解决服务编排的问题，kubernetes在V1.2版本开始，引入了Deployment控制器。值得一提的是，这种控制器并不直接管理pod，而是通过管理ReplicaSet来简介管理Pod，即：Deployment管理ReplicaSet，ReplicaSet管理Pod。所以Deployment比ReplicaSet功能更加强大。
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0gzyelmqj30gw05q3yv.jpg)
+![img](./Kubenetes.assets/20230311-04.png)
 
 Deployment主要功能有下面几个：
 
@@ -3580,7 +3582,7 @@ spec: # 详情描述
         - containerPort: 80
 ```
 
-**创建deployment**
+#### **6.3.1创建deployment**
 
 创建pc-deployment.yaml，内容如下：
 
@@ -3631,7 +3633,9 @@ pc-deployment-6696798b78-smpvp   1/1     Running   0          107s
 pc-deployment-6696798b78-wvjd8   1/1     Running   0          107s
 ```
 
-**扩缩容**
+
+
+#### **6.3.2 扩缩容**
 
 ```shell
 # 变更副本数量为5个
@@ -3665,11 +3669,13 @@ pc-deployment-6696798b78-smpvp   1/1     Running   0          5m23s
 pc-deployment-6696798b78-wvjd8   1/1     Running   0          5m23s
 ```
 
-**镜像更新**
+
+
+#### **6.3.3 镜像更新**
 
 deployment支持两种更新策略:`重建更新`和`滚动更新`,可以通过`strategy`指定策略类型,支持两个属性:
 
-```yaml
+```markdown
 strategy：指定新的Pod替换旧的Pod的策略， 支持两个属性：
   type：指定策略类型，支持两种策略
     Recreate：在创建出新的Pod之前会先杀掉所有已存在的Pod
@@ -3679,7 +3685,9 @@ strategy：指定新的Pod替换旧的Pod的策略， 支持两个属性：
     maxSurge： 用来指定在升级过程中可以超过期望的Pod的最大数量，默认为25%。
 ```
 
-重建更新
+
+
+##### **重建更新**
 
 1) 编辑pc-deployment.yaml,在spec节点下添加更新策略
 
@@ -3720,7 +3728,9 @@ pc-deployment-675d469f8b-67nz2   1/1     Running             0          1s
 pc-deployment-675d469f8b-hbl4v   1/1     Running             0          2s
 ```
 
-滚动更新
+
+
+##### **滚动更新**
 
 1) 编辑pc-deployment.yaml,在spec节点下添加更新策略
 
@@ -3774,7 +3784,7 @@ pc-deployment-c848d767-rrqcn    0/1     Terminating         0          34m
 
 滚动更新的过程：
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h04059vj30v20enju0.jpg)
+![img](./Kubenetes.assets/20230311-05.png)
 
 镜像更新中rs的变化
 
@@ -3788,7 +3798,9 @@ pc-deployment-6696798b11   0         0         0       5m37s
 pc-deployment-c848d76789   4         4         4       72s
 ```
 
-**版本回退**
+
+
+##### **版本回退**
 
 deployment支持版本升级过程中的暂停、继续功能以及版本回退等诸多功能，下面具体来看.
 
@@ -3835,11 +3847,13 @@ pc-deployment-966bf7f44    0         0         0       37m
 pc-deployment-c848d767     0         0         0       71m
 ```
 
-**金丝雀发布**
+
+
+##### **金丝雀发布**
 
 Deployment控制器支持控制更新过程中的控制，如“暂停(pause)”或“继续(resume)”更新操作。
 
-比如有一批新的Pod资源创建完成后立即暂停更新过程，此时，仅存在一部分新版本的应用，主体部分还是旧的版本。然后，再筛选一小部分的用户请求路由到新版本的Pod应用，继续观察能否稳定地按期望的方式运行。确定没问题之后再继续完成余下的Pod资源滚动更新，否则立即回滚更新操作。这就是所谓的金丝雀发布。
+比如有一批新的Pod资源创建完成后立即暂停更新过程，此时，仅存在一部分新版本的应用，主体部分还是旧的版本。然后，再筛选一小部分的用户请求路由到新版本的Pod应用，继续观察能否稳定地按期望的方式运行。确定没问题之后再继续完成余下的Pod资源滚动更新，否则立即回滚更新操作。这就是所谓的**金丝雀发布**。
 
 ```shell
 # 更新deployment的版本，并配置暂停deployment
@@ -3885,6 +3899,8 @@ pc-deployment-6c9f56fcfb-j2gtj   1/1     Running   0          5m27s
 pc-deployment-6c9f56fcfb-rf84v   1/1     Running   0          37s
 ```
 
+
+
 **删除Deployment**
 
 ```shell
@@ -3892,6 +3908,10 @@ pc-deployment-6c9f56fcfb-rf84v   1/1     Running   0          37s
 [root@k8s-master01 ~]# kubectl delete -f pc-deployment.yaml
 deployment.apps "pc-deployment" deleted
 ```
+
+
+
+
 
 ## 6.4 Horizontal Pod Autoscaler(HPA)
 
