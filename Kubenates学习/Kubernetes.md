@@ -3919,7 +3919,7 @@ deployment.apps "pc-deployment" deleted
 
 HPA可以获取每个Pod利用率，然后和HPA中定义的指标进行对比，同时计算出需要伸缩的具体值，最后实现Pod的数量的调整。其实HPA与之前的Deployment一样，也属于一种Kubernetes资源对象，它通过追踪分析RC控制的所有目标Pod的负载变化情况，来确定是否需要针对性地调整目标Pod的副本数，这是HPA的实现原理。
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h08uypfj30ha0ae3z2.jpg)
+![img](./Kubenetes.assets/20230312-01.png)
 
 接下来，我们来做一个实验
 
@@ -3943,7 +3943,7 @@ args:
 - --kubelet-preferred-address-types=InternalIP,Hostname,InternalDNS,ExternalDNS,ExternalIP
 ```
 
-![image-20200608163326496](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h0dzzk2j314i0bmjv0.jpg)
+![image-20200608163326496](./Kubenetes.assets/20230312-02.png)
 
 ```shell
 # 安装metrics-server
@@ -3954,17 +3954,23 @@ args:
 metrics-server-6b976979db-2xwbj   1/1     Running   0          90s
 
 # 使用kubectl top node 查看资源使用情况
-[root@k8s-master01 1.8+]# kubectl top node
-NAME           CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%
-k8s-master01   289m         14%    1582Mi          54%       
-k8s-node01     81m          4%     1195Mi          40%       
-k8s-node02     72m          3%     1211Mi          41%  
-[root@k8s-master01 1.8+]# kubectl top pod -n kube-system
-NAME                              CPU(cores)   MEMORY(bytes)
-coredns-6955765f44-7ptsb          3m           9Mi
-coredns-6955765f44-vcwr5          3m           8Mi
-etcd-master                       14m          145Mi
-...
+[root@master 1.8+]# kubectl top nodes
+NAME     CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%   
+master   825m         41%    1004Mi          37%       
+node1    89m          8%     615Mi           36%       
+node2    107m         10%    575Mi           33% 
+[root@master 1.8+]# kubectl  top pod -n kube-system 
+NAME                              CPU(cores)   MEMORY(bytes)   
+coredns-9d85f5447-76t8z           9m           21Mi            
+coredns-9d85f5447-7cvzm           8m           12Mi            
+etcd-master                       52m          103Mi           
+kube-apiserver-master             131m         333Mi           
+kube-controller-manager-master    58m          42Mi            
+kube-proxy-jh5p4                  2m           26Mi            
+kube-proxy-svnrv                  2m           14Mi            
+kube-proxy-swsmk                  1m           23Mi            
+kube-scheduler-master             11m          19Mi            
+metrics-server-6b976979db-jlphz   2m           11Mi 
 # 至此,metrics-server安装完成
 ```
 
@@ -4044,7 +4050,7 @@ spec:
 horizontalpodautoscaler.autoscaling/pc-hpa created
 
 # 查看hpa
-    [root@k8s-master01 1.8+]# kubectl get hpa -n dev
+[root@k8s-master01 1.8+]# kubectl get hpa -n dev
 NAME     REFERENCE          TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
 pc-hpa   Deployment/nginx   0%/3%     1         10        1          62s
 ```
@@ -4072,27 +4078,29 @@ pc-hpa  Deployment/nginx  0%/3%   1     10     1      14m
 deployment变化
 
 ```shell
-[root@k8s-master01 ~]# kubectl get deployment -n dev -w
+[root@master ~]# kubectl get deployments.apps -n dev -w
 NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-nginx   1/1     1            1           11m
-nginx   1/4     1            1           13m
-nginx   1/4     1            1           13m
-nginx   1/4     1            1           13m
-nginx   1/4     4            1           13m
-nginx   1/8     4            1           14m
-nginx   1/8     4            1           14m
-nginx   1/8     4            1           14m
-nginx   1/8     8            1           14m
-nginx   2/8     8            2           14m
-nginx   3/8     8            3           14m
-nginx   4/8     8            4           14m
-nginx   5/8     8            5           14m
-nginx   6/8     8            6           14m
-nginx   7/8     8            7           14m
-nginx   8/8     8            8           15m
-nginx   8/1     8            8           20m
-nginx   8/1     8            8           20m
-nginx   1/1     1            1           20m
+nginx   4/4     4            4           17m
+tain1   1/1     1            1           17h
+nginx   4/8     4            4           24m
+nginx   4/8     4            4           24m
+nginx   4/8     4            4           24m
+nginx   4/8     8            4           24m
+nginx   5/8     8            5           24m
+nginx   6/8     8            6           25m
+nginx   7/8     8            7           25m
+nginx   8/8     8            8           25m
+nginx   8/16    8            8           25m
+nginx   8/16    8            8           25m
+nginx   8/16    8            8           25m
+nginx   8/16    16           8           25m
+nginx   9/16    16           9           25m
+nginx   10/16   16           10          25m
+nginx   11/16   16           11          25m
+nginx   12/16   16           12          25m
+nginx   13/16   16           13          25m
+nginx   14/16   16           14          25m
+nginx   16/16   16           16          27m
 ```
 
 pod变化
@@ -4130,6 +4138,10 @@ nginx-7df9756ccc-rr9bn   1/1     Terminating         0          7m5s
 nginx-7df9756ccc-m9gsj   1/1     Terminating         0          6m50s
 nginx-7df9756ccc-sl9c6   1/1     Terminating         0          6m50s
 ```
+
+
+
+
 
 ## 6.5 DaemonSet(DS)
 
