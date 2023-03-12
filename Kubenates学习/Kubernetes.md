@@ -4145,9 +4145,11 @@ nginx-7df9756ccc-sl9c6   1/1     Terminating         0          6m50s
 
 ## 6.5 DaemonSet(DS)
 
-DaemonSet类型的控制器可以保证在集群中的每一台（或指定）节点上都运行一个副本。一般适用于日志收集、节点监控等场景。也就是说，如果一个Pod提供的功能是节点级别的（每个节点都需要且只需要一个），那么这类Pod就适合使用DaemonSet类型的控制器创建。
+> 保证每个集群只运行一个副本
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h0kzoppj30j107fmxu.jpg)
+DaemonSet类型的控制器可以保证在**集群中**的每一台（或指定）节点上都运行一个副本。一般适用于**日志收集、节点监控**等场景。也就是说，如果一个Pod提供的功能是节点级别的（每个节点都需要且只需要一个），那么这类Pod就适合使用DaemonSet类型的控制器创建。
+
+![img](./Kubenetes.assets/20230312-04.png)
 
 DaemonSet控制器的特点：
 
@@ -4166,10 +4168,10 @@ metadata: # 元数据
     controller: daemonset
 spec: # 详情描述
   revisionHistoryLimit: 3 # 保留历史版本
-  updateStrategy: # 更新策略
-    type: RollingUpdate # 滚动更新策略
-    rollingUpdate: # 滚动更新
-      maxUnavailable: 1 # 最大不可用状态的 Pod 的最大值，可以为百分比，也可以为整数
+    updateStrategy: # 更新策略
+      type: RollingUpdate # 滚动更新策略
+      rollingUpdate: # 滚动更新
+        maxUnavailable: 1 # 最大不可用状态的 Pod 的最大值，可以为百分比，也可以为整数
   selector: # 选择器，通过它指定该控制器管理哪些pod
     matchLabels:      # Labels匹配规则
       app: nginx-pod
@@ -4230,6 +4232,10 @@ pc-daemonset-k224w   1/1     Running   0          37s   10.244.2.74   node2
 daemonset.apps "pc-daemonset" deleted
 ```
 
+
+
+  
+
 ## 6.6 Job
 
 Job，主要用于负责**批量处理(一次要处理指定数量任务)**短暂的**一次性(每个任务仅运行一次就结束)**任务。Job特点如下：
@@ -4237,11 +4243,9 @@ Job，主要用于负责**批量处理(一次要处理指定数量任务)**短�
 - 当Job创建的pod执行成功结束时，Job将记录成功结束的pod数量
 - 当成功结束的pod达到指定的数量时，Job将完成执行
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h0p7fasj30m9072aah.jpg)
+![img](./Kubenetes.assets/2023031205.png)
 
 Job的资源清单文件：
-
-
 
 ```yaml
 apiVersion: batch/v1 # 版本号
@@ -4356,11 +4360,13 @@ pc-job-5vg2j   0/1     Completed           0          12s
 job.batch "pc-job" deleted
 ```
 
+
+
 ## 6.7 CronJob(CJ)
 
 CronJob控制器以Job控制器资源为其管控对象，并借助它管理pod资源对象，Job控制器定义的作业任务在其控制器资源创建之后便会立即执行，但CronJob可以以类似于Linux操作系统的周期性任务作业计划的方式控制其运行**时间点**及**重复运行**的方式。也就是说，**CronJob可以在特定的时间点(反复的)去运行job任务**。
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h0uuni4j30n208d74v.jpg)
+![img](./Kubenetes.assets/2023031206.png)
 
 CronJob的资源清单文件：
 
@@ -4475,6 +4481,8 @@ cronjob.batch "pc-cronjob" deleted
 ```
 
  
+
+
 
 
 
