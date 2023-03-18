@@ -4906,15 +4906,19 @@ http://192.168.191.158:30002/
 
 ### 7.3.5 LoadBalancer类型的Service
 
-LoadBalancer和NodePort很相似，目的都是向外部暴露一个端口，区别在于LoadBalancer会在集群的外部再来做一个负载均衡设备，而这个设备需要外部环境支持的，外部服务发送到这个设备上的请求，会被设备负载之后转发到集群中。
+LoadBalancer和NodePort很相似，目的都是向外部暴露一个端口，**区别在于LoadBalancer会在集群的外部再来做一个负载均衡设备**，而这个设备需要外部环境支持的，外部服务发送到这个设备上的请求，会被设备负载之后转发到集群中。
 
 ![img](./Kubenetes.assets/20230318-02.png)
 
-
+> 引用外部的LoadBalance 做处理 
 
 
 
 ### 7.3.6 ExternalName类型的Service
+
+> 和上述类型反着来，上面是外面请求内部服务，各种类型去判断处理
+>
+> 这个是 集群内部 调用外部服务 配置对应的service去访问  （可能因为各种原因无法访问外部资源）
 
 ExternalName类型的Service用于引入集群外部的服务，它通过`externalName`属性指定外部一个服务的地址，然后在集群内部访问此service就可以访问到外部的服务了。
 
@@ -4957,12 +4961,12 @@ www.a.shifen.com.       30      IN      A       39.156.66.14
 
 基于这种现状，kubernetes提供了Ingress资源对象，Ingress只需要一个NodePort或者一个LB就可以满足暴露多个Service的需求。工作机制大致如下图表示：
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h201ge9j30rk0bqq4x.jpg)
+![img](./Kubenetes.assets/20230318-04.png)
 
 实际上，Ingress相当于一个7层的负载均衡器，是kubernetes对反向代理的一个抽象，它的工作原理类似于Nginx，可以理解成在**Ingress里建立诸多映射规则，Ingress Controller通过监听这些配置规则并转化成Nginx的反向代理配置 , 然后对外部提供服务**。在这里有两个核心概念：
 
-- ingress：kubernetes中的一个对象，作用是定义请求如何转发到service的规则
-- ingress controller：具体实现反向代理及负载均衡的程序，对ingress定义的规则进行解析，根据配置的规则来实现请求转发，实现方式有很多，比如Nginx, Contour, Haproxy等等
+- **ingress**：kubernetes中的一个对象，***作用是定义请求如何转发到service的规则***
+- **ingress controller**：具体实现反向代理及负载均衡的程序，**对ingress定义的规则进行解析，根据配置的规则来实现请求转发**，实现方式有很多，比如**Nginx**, Contour, **Haproxy**等等
 
 Ingress（以Nginx为例）的工作原理如下：
 
@@ -4971,15 +4975,21 @@ Ingress（以Nginx为例）的工作原理如下：
 3. Ingress控制器会将生成的Nginx配置写入到一个运行着的Nginx服务中，并动态更新
 4. 到此为止，其实真正在工作的就是一个Nginx了，内部配置了用户定义的请求转发规则
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h23q6f0j30p60c1ta3.jpg)
+![img](./Kubenetes.assets/20230318-05.png)
+
+
+
+
 
 ## 7.5 Ingress使用
+
+
 
 ### 7.5.1 环境准备
 
 **搭建ingress环境**
 
-```
+```shell
 # 创建文件夹
 [root@k8s-master01 ~]# mkdir ingress-controller
 [root@k8s-master01 ~]# cd ingress-controller/
@@ -4995,21 +5005,25 @@ Ingress（以Nginx为例）的工作原理如下：
 [root@k8s-master01 ingress-controller]# kubectl apply -f ./
 
 # 查看ingress-nginx
-[root@k8s-master01 ingress-controller]# kubectl get pod -n ingress-nginx
-NAME                                           READY   STATUS    RESTARTS   AGE
-pod/nginx-ingress-controller-fbf967dd5-4qpbp   1/1     Running   0          12h
+[root@master ingress-controller]# kubectl  get pods -n ingress-nginx 
+NAME                                        READY   STATUS    RESTARTS   AGE
+nginx-ingress-controller-7f74f657bd-59mfq   1/1     Running   0          80s
 
 # 查看service
-[root@k8s-master01 ingress-controller]# kubectl get svc -n ingress-nginx
-NAME            TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)                      AGE
-ingress-nginx   NodePort   10.98.75.163   <none>        80:32240/TCP,443:31335/TCP   11h
+[root@master ingress-controller]# kubectl get service -n ingress-nginx 
+NAME            TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)                      AGE
+ingress-nginx   NodePort   10.97.197.0   <none>        80:30655/TCP,443:31288/TCP   100s
 ```
+
+
 
 **准备service和pod**
 
 为了后面的实验比较方便，创建如下图所示的模型
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h27i7xij30pa09yjsp.jpg)
+![img](./Kubenetes.assets/20230318-06.png)
+
+
 
 创建tomcat-nginx.yaml
 
@@ -5102,6 +5116,8 @@ nginx-service    ClusterIP   None         <none>        80/TCP     48s
 tomcat-service   ClusterIP   None         <none>        8080/TCP   48s
 ```
 
+
+
 ### 7.5.2 Http代理
 
 创建ingress-http.yaml
@@ -5141,18 +5157,35 @@ NAME           HOSTS                                  ADDRESS   PORTS   AGE
 ingress-http   nginx.itheima.com,tomcat.itheima.com             80      22s
 
 # 查看详情
-[root@k8s-master01 ~]# kubectl describe ing ingress-http  -n dev
-...
+[root@master ingress]# kubectl  describe ingresses ingress-http -n dev
+Name:             ingress-http
+Namespace:        dev
+Address:          
+Default backend:  default-http-backend:80 (<none>)
 Rules:
-Host                Path  Backends
-----                ----  --------
-nginx.itheima.com   / nginx-service:80 (10.244.1.96:80,10.244.1.97:80,10.244.2.112:80)
-tomcat.itheima.com  / tomcat-service:8080(10.244.1.94:8080,10.244.1.95:8080,10.244.2.111:8080)
-...
+  Host                Path  Backends
+  ----                ----  --------
+  nginx.itheima.com   
+                      /   nginx-service:80 (10.244.1.139:80,10.244.2.216:80,10.244.2.217:80)
+  tomcat.itheima.com  
+                      /   tomcat-service:8080 (10.244.1.140:8080,10.244.1.141:8080,10.244.2.218:8080)
+Annotations:
+Events:
+  Type    Reason  Age   From                      Message
+  ----    ------  ----  ----                      -------
+  Normal  CREATE  40s   nginx-ingress-controller  Ingress dev/ingress-http
+  
+# 使用ingress的域名的端口去访问 然后ingress转发到对应的service上去  
+[root@master ingress]# kubectl  get svc -n ingress-nginx 
+NAME            TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)                      AGE
+ingress-nginx   NodePort   10.97.197.0   <none>        80:30655/TCP,443:31288/TCP   71m
+ 
 
 # 接下来,在本地电脑上配置host文件,解析上面的两个域名到192.168.109.100(master)上
 # 然后,就可以分别访问tomcat.itheima.com:32240  和  nginx.itheima.com:32240 查看效果了
 ```
+
+
 
 ### 7.5.3 Https代理
 
