@@ -4893,11 +4893,13 @@ spec:
 service/service-nodeport created
 
 # 查看service
-[root@k8s-master01 ~]# kubectl get svc -n dev -o wide
-NAME               TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)       SELECTOR
-service-nodeport   NodePort   10.105.64.191   <none>        80:30002/TCP  app=nginx-pod
+[root@master service]# kubectl  get svc -n dev
+NAME                 TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
+service-nodeport     NodePort    10.96.104.248    <none>        80:30002/TCP   10s
+
 
 # 接下来可以通过电脑主机的浏览器去访问集群中任意一个nodeip的30002端口，即可访问到pod
+http://192.168.191.158:30002/
 ```
 
 
