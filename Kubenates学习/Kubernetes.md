@@ -4804,12 +4804,13 @@ spec:
 service/service-headliness created
 
 # 获取service， 发现CLUSTER-IP未分配
-[root@k8s-master01 ~]# kubectl get svc service-headliness -n dev -o wide
-NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE   SELECTOR
-service-headliness   ClusterIP   None         <none>        80/TCP    11s   app=nginx-pod
+[root@master service]# kubectl  get service -n dev -o wide
+NAME                 TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE    SELECTOR
+service-headliness   ClusterIP   None             <none>        80/TCP         20s    app=nginx-pod
+
 
 # 查看service详情
-[root@k8s-master01 ~]# kubectl describe svc service-headliness  -n dev
+[root@master service]# kubectl describe service service-headliness -n dev
 Name:              service-headliness
 Namespace:         dev
 Labels:            <none>
@@ -4819,20 +4820,45 @@ Type:              ClusterIP
 IP:                None
 Port:              <unset>  80/TCP
 TargetPort:        80/TCP
-Endpoints:         10.244.1.39:80,10.244.1.40:80,10.244.2.33:80
+Endpoints:         10.244.1.138:80,10.244.2.212:80,10.244.2.213:80
 Session Affinity:  None
 Events:            <none>
 
+
 # 查看域名的解析情况
-[root@k8s-master01 ~]# kubectl exec -it pc-deployment-66cb59b984-8p84h -n dev /bin/sh
-/ # cat /etc/resolv.conf
+[root@master service]# kubectl  exec -it pc-deployment-6696798b78-ccchw -n dev /bin/sh
+#  cat /etc/resolv.conf
 nameserver 10.96.0.10
 search dev.svc.cluster.local svc.cluster.local cluster.local
 
-[root@k8s-master01 ~]# dig @10.96.0.10 service-headliness.dev.svc.cluster.local
-service-headliness.dev.svc.cluster.local. 30 IN A 10.244.1.40
-service-headliness.dev.svc.cluster.local. 30 IN A 10.244.1.39
-service-headliness.dev.svc.cluster.local. 30 IN A 10.244.2.33
+
+[root@master service]# dig @10.96.0.10 service-headliness.dev.svc.cluster.local
+
+; <<>> DiG 9.11.4-P2-RedHat-9.11.4-26.P2.el7_9.13 <<>> @10.96.0.10 service-headliness.dev.svc.cluster.local
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; WARNING: .local is reserved for Multicast DNS
+;; You are currently testing what happens when an mDNS query is leaked to DNS
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 47813
+;; flags: qr aa rd; QUERY: 1, ANSWER: 3, AUTHORITY: 0, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+;; QUESTION SECTION:
+;service-headliness.dev.svc.cluster.local. IN A
+
+;; ANSWER SECTION:
+# service-headliness.dev.svc.cluster.local. 30 IN A 10.244.2.212
+# service-headliness.dev.svc.cluster.local. 30 IN A 10.244.2.213
+# service-headliness.dev.svc.cluster.local. 30 IN A 10.244.1.138
+
+;; Query time: 4 msec
+;; SERVER: 10.96.0.10#53(10.96.0.10)
+;; WHEN: 六 3月 18 15:15:07 CST 2023
+;; MSG SIZE  rcvd: 237
+
 ```
 
 
