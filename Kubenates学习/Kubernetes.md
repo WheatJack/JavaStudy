@@ -58,8 +58,6 @@ kubernetes的本质是**一组服务器集群**，它可以在集群的每个节
 - **版本回退**：如果发现新发布的程序版本有问题，可以立即回退到原来的版本
 - **存储编排**：可以根据容器自身的需求自动创建存储卷
 
-![image-20230302205908525](./Kubenetes.assets/image-20230302205908525.png)
-
 ![image-20230302205946735](./Kubenetes.assets/11111.png)
 
 ## 1.3 kubernetes组件
@@ -1479,7 +1477,7 @@ spec:
 # --namespace  指定namespace
 # ##老版本使用是run
 [root@master ~]# kubectl run deploy nginx --image=nginx:latest --port=80 --replicas=3 -n dev
-# ##新版本使用是run
+# ##新版本使用是create
 [root@master ~]# kubectl create deploy nginx --image=nginx:latest --port=80 --replicas=3 -n dev
 deployment.apps/nginx created
 
