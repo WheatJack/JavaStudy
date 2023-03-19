@@ -6143,7 +6143,7 @@ Kubernetes作为一个分布式集群的管理工具，保证集群的安全性�
 - **User Account**：一般是独立于kubernetes之外的其他服务管理的用户账号。
 - **Service Account**：kubernetes管理的账号，用于为Pod中的服务进程在访问Kubernetes时提供身份标识。
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h3748alj30nt07z0tg.jpg)
+![img](./Kubenetes.assets/20230319001.png)
 
 **认证、授权与准入控制**
 
@@ -6153,31 +6153,33 @@ ApiServer是访问及管理资源对象的唯一入口。任何一个请求访�
 - Authorization（授权）： 判断用户是否有权限对访问的资源执行特定的动作
 - Admission Control（准入控制）：用于补充授权机制以实现更加精细的访问控制功能。
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h3bvb48j30s905ygmc.jpg)
+![img](./Kubenetes.assets/20230319-002.png)
+
+
 
 ## 9.2 认证管理
 
 Kubernetes集群安全的最关键点在于如何识别并认证客户端身份，它提供了3种客户端身份认证方式：
 
-- HTTP Base认证：通过用户名+密码的方式认证
+- **HTTP Base认证**：***通过用户名+密码的方式认证***
 
   ```
       这种认证方式是把“用户名:密码”用BASE64算法进行编码后的字符串放在HTTP请求中的Header Authorization域里发送给服务端。服务端收到后进行解码，获取用户名及密码，然后进行用户身份认证的过程。
   ```
 
-- HTTP Token认证：通过一个Token来识别合法用户
+- **HTTP Token认证**：***通过一个Token来识别合法用户***
 
   ```
       这种认证方式是用一个很长的难以被模仿的字符串--Token来表明客户身份的一种方式。每个Token对应一个用户名，当客户端发起API调用请求时，需要在HTTP Header里放入Token，API Server接到Token后会跟服务器中保存的token进行比对，然后进行用户身份认证的过程。
   ```
 
-- HTTPS证书认证：基于CA根证书签名的双向数字证书认证方式
+- **HTTPS证书认证**：***基于CA根证书签名的双向数字证书认证方式***
 
   ```
       这种认证方式是安全性最高的一种方式，但是同时也是操作起来最麻烦的一种方式。
   ```
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h3fh42nj30r80djdha.jpg)
+![img](./Kubenetes.assets/202303190-003.png)
 
 **HTTPS认证大体分为3个过程：**
 
@@ -6206,20 +6208,22 @@ Kubernetes集群安全的最关键点在于如何识别并认证客户端身份�
 
 > 注意: Kubernetes允许同时配置多种认证方式，只要其中任意一个方式认证通过即可
 
+
+
 ## 9.3 授权管理
 
 授权发生在认证成功之后，通过认证就可以知道请求用户是谁， 然后Kubernetes会根据事先定义的授权策略来决定用户是否有权限访问，这个过程就称为授权。
 
 每个发送到ApiServer的请求都带上了用户和资源的信息：比如发送请求的用户、请求的路径、请求的动作等，授权就是根据这些信息和授权策略进行比较，如果符合策略，则认为授权通过，否则会返回错误。
 
-API Server目前支持以下几种授权策略：
+**API Server目前支持以下几种授权策略**：
 
-- AlwaysDeny：表示拒绝所有请求，一般用于测试
-- AlwaysAllow：允许接收所有请求，相当于集群不需要授权流程（Kubernetes默认的策略）
-- ABAC：基于属性的访问控制，表示使用用户配置的授权规则对用户请求进行匹配和控制
-- Webhook：通过调用外部REST服务对用户进行授权
-- Node：是一种专用模式，用于对kubelet发出的请求进行访问控制
-- RBAC：基于角色的访问控制（kubeadm安装方式下的默认选项）
+- **AlwaysDeny**：表示拒绝所有请求，一般用于测试
+- **AlwaysAllow**：允许接收所有请求，相当于集群不需要授权流程（Kubernetes默认的策略）
+- **ABAC**：基于属性的访问控制，表示使用用户配置的授权规则对用户请求进行匹配和控制
+- **Webhook**：通过调用外部REST服务对用户进行授权
+- **Node**：是一种专用模式，用于对kubelet发出的请求进行访问控制
+- **RBAC**：基于角色的访问控制（***kubeadm安装方式下的默认选项***）
 
 RBAC(Role-Based Access Control) 基于角色的访问控制，主要是在描述一件事情：**给哪些对象授予了哪些权限**
 
@@ -6229,9 +6233,9 @@ RBAC(Role-Based Access Control) 基于角色的访问控制，主要是在描述
 - 角色：代表着一组定义在资源上的可操作动作(权限)的集合
 - 绑定：将定义好的角色跟用户绑定在一起
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h3k7lzcj30pb0cwmyj.jpg)
+![img](./Kubenetes.assets/20230319-003.png)
 
-RBAC引入了4个顶级资源对象：
+RBAC引入了4个**顶级资源对象**：
 
 - Role、ClusterRole：角色，用于指定一组权限
 - RoleBinding、ClusterRoleBinding：角色绑定，用于将角色（权限）赋予给对象
@@ -6440,6 +6444,10 @@ nginx-deployment-66cb59b984-thfck    1/1     Running            0          4d1h
 Switched to context "kubernetes-admin@kubernetes".
 ```
 
+
+
+
+
 ## 9.4 准入控制
 
 通过了前面的认证和授权之后，还需要经过准入控制处理通过之后，apiserver才会处理这个请求。
@@ -6474,7 +6482,9 @@ Switched to context "kubernetes-admin@kubernetes".
 
 # 10. DashBoard
 
-之前在kubernetes中完成的所有操作都是通过命令行工具kubectl完成的。其实，为了提供更丰富的用户体验，kubernetes还开发了一个基于web的用户界面（Dashboard）。用户可以使用Dashboard部署容器化的应用，还可以监控应用的状态，执行故障排查以及管理kubernetes中各种资源。
+之前在kubernetes中完成的所有操作都是通过命令行工具kubectl完成的。其实，为了提供更丰富的用户体验，kubernetes还开发了一个基于web的用户界面（**Dashboard**）。用户可以使用Dashboard部署容器化的应用，还可以监控应用的状态，执行故障排查以及管理kubernetes中各种资源。
+
+
 
 ## 10.1 部署Dashboard
 
@@ -6505,14 +6515,15 @@ spec:
 [root@k8s-master01 ~]# kubectl create -f recommended.yaml
 
 # 查看namespace下的kubernetes-dashboard下的资源
-[root@k8s-master01 ~]# kubectl get pod,svc -n kubernetes-dashboard
+[root@master dashboard]# kubectl  get pods,svc -n kubernetes-dashboard  
 NAME                                            READY   STATUS    RESTARTS   AGE
-pod/dashboard-metrics-scraper-c79c65bb7-zwfvw   1/1     Running   0          111s
-pod/kubernetes-dashboard-56484d4c5-z95z5        1/1     Running   0          111s
+pod/dashboard-metrics-scraper-c79c65bb7-rs7xd   1/1     Running   0          58s
+pod/kubernetes-dashboard-56484d4c5-wl6hj        1/1     Running   0          58s
 
-NAME                               TYPE       CLUSTER-IP      EXTERNAL-IP  PORT(S)         AGE
-service/dashboard-metrics-scraper  ClusterIP  10.96.89.218    <none>       8000/TCP        111s
-service/kubernetes-dashboard       NodePort   10.104.178.171  <none>       443:30009/TCP   111s
+NAME                                TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)         AGE
+service/dashboard-metrics-scraper   ClusterIP   10.107.68.150   <none>        8000/TCP        58s
+service/kubernetes-dashboard        NodePort    10.108.65.76    <none>        443:30009/TCP   59s
+
 ```
 
 2）创建访问账户，获取token
@@ -6525,34 +6536,36 @@ service/kubernetes-dashboard       NodePort   10.104.178.171  <none>       443:3
 [root@k8s-master01-1 ~]# kubectl create clusterrolebinding dashboard-admin-rb --clusterrole=cluster-admin --serviceaccount=kubernetes-dashboard:dashboard-admin
 
 # 获取账号token
-[root@k8s-master01 ~]#  kubectl get secrets -n kubernetes-dashboard | grep dashboard-admin
-dashboard-admin-token-xbqhh        kubernetes.io/service-account-token   3      2m35s
+[root@master dashboard]# kubectl get secrets -n kubernetes-dashboard | grep dashboard-admin
+dashboard-admin-token-7njnv        kubernetes.io/service-account-token   3      92s
 
-[root@k8s-master01 ~]# kubectl describe secrets dashboard-admin-token-xbqhh -n kubernetes-dashboard
-Name:         dashboard-admin-token-xbqhh
+
+[root@master dashboard]# kubectl  describe secrets dashboard-admin-token-7njnv  -n kubernetes-dashboard 
+Name:         dashboard-admin-token-7njnv
 Namespace:    kubernetes-dashboard
 Labels:       <none>
 Annotations:  kubernetes.io/service-account.name: dashboard-admin
-              kubernetes.io/service-account.uid: 95d84d80-be7a-4d10-a2e0-68f90222d039
+              kubernetes.io/service-account.uid: 8c3e86b5-aba6-4679-82a0-bb63fddc7fcf
 
 Type:  kubernetes.io/service-account-token
 
 Data
 ====
-namespace:  20 bytes
-token:      eyJhbGciOiJSUzI1NiIsImtpZCI6ImJrYkF4bW5XcDhWcmNGUGJtek5NODFuSXl1aWptMmU2M3o4LTY5a2FKS2cifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlcm5ldGVzLWRhc2hib2FyZCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJkYXNoYm9hcmQtYWRtaW4tdG9rZW4teGJxaGgiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZGFzaGJvYXJkLWFkbWluIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiOTVkODRkODAtYmU3YS00ZDEwLWEyZTAtNjhmOTAyMjJkMDM5Iiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmVybmV0ZXMtZGFzaGJvYXJkOmRhc2hib2FyZC1hZG1pbiJ9.NAl7e8ZfWWdDoPxkqzJzTB46sK9E8iuJYnUI9vnBaY3Jts7T1g1msjsBnbxzQSYgAG--cV0WYxjndzJY_UWCwaGPrQrt_GunxmOK9AUnzURqm55GR2RXIZtjsWVP2EBatsDgHRmuUbQvTFOvdJB4x3nXcYLN2opAaMqg3rnU2rr-A8zCrIuX_eca12wIp_QiuP3SF-tzpdLpsyRfegTJZl6YnSGyaVkC9id-cxZRb307qdCfXPfCHR_2rt5FVfxARgg_C0e3eFHaaYQO7CitxsnIoIXpOFNAR8aUrmopJyODQIPqBWUehb7FhlU1DCduHnIIXVC_UICZ-MKYewBDLw
 ca.crt:     1025 bytes
+namespace:  20 bytes
+token:      eyJhbGciOiJSUzI1NiIsImtpZCI6ImlrejEtZWNKcW9MeEU0RFc0bU9VaVRHQnY0T1U5X3FRWFB0WXNrMXNwdlUifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlcm5ldGVzLWRhc2hib2FyZCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJkYXNoYm9hcmQtYWRtaW4tdG9rZW4tN25qbnYiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZGFzaGJvYXJkLWFkbWluIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiOGMzZTg2YjUtYWJhNi00Njc5LTgyYTAtYmI2M2ZkZGM3ZmNmIiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmVybmV0ZXMtZGFzaGJvYXJkOmRhc2hib2FyZC1hZG1pbiJ9.MozINPcJkQaYVWkkurCKegMfRU_hCRehAKcEyNfr-IGg8Wc-2B-nILC-AT2ASFzGlxNno9Jc4M6w4CPo31E2T6fjaKfYG2sJRP4Y8ZR2SUxLL4g360WqwYr8ETI8C3iTG1QLfqFPia9kcFsXYx5rKJgTW68X5PPQX7IsvW8cgot9QQr9ARvI8BX6lJ1iARsD9eCOjvuOJSN-INJ3Gfr9XzhOHo_eoVjFGys-BCA4hNHiI4EX8v-SUDTydGCJf6mVhjzFd3c5KKmEXhJvSGSOLY1nI9Du7tp4jF6Q1S0rC33WhlCgqMbd1GRtI_CMMDsI3NJmB5GEhwCNCELapeMbfQ
+
 ```
 
 3）通过浏览器访问Dashboard的UI
 
 在登录页面上输入上面的token
 
-![image-20200520144548997](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h3snlagj30sm0eoju5.jpg)
+![image-20230319145748977](./Kubenetes.assets/20230319-0001.png)
 
 出现下面的页面代表成功
 
-![image-20200520144959353](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h3vv20aj31h30ppn04.jpg)
+![image-20230319145845102](./Kubenetes.assets/image-20230319145845102.png)
 
 ## 10.2 使用DashBoard
 
@@ -6562,31 +6575,31 @@ ca.crt:     1025 bytes
 
 选择指定的命名空间`dev`，然后点击`Deployments`，查看dev空间下的所有deployment
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h40658oj31gi0atq3z.jpg)
+![image-20230319150306380](./Kubenetes.assets/image-20230319150306380.png)
 
 **扩缩容**
 
 在`Deployment`上点击`规模`，然后指定`目标副本数量`，点击确定
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h43wtwqj317z0h4ac3.jpg)
+![image-20230319150352294](./Kubenetes.assets/image-20230319150352294.png)
 
 **编辑**
 
 在`Deployment`上点击`编辑`，然后修改`yaml文件`，点击确定
 
-![image-20200520163253644](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h47hae7j31790amabo.jpg)
+![image-20230319150431614](./Kubenetes.assets/image-20230319150431614.png)
 
 **查看Pod**
 
 点击`Pods`, 查看pods列表
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h4bx3qfj31g70ev415.jpg)
+![image-20230319150521557](./Kubenetes.assets/image-20230319150521557.png)
 
 **操作Pod**
 
 选中某个Pod，可以对其执行日志（logs）、进入执行（exec）、编辑、删除操作
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h4g1x03j316i08pq47.jpg)
+![image-20230319150602285](./Kubenetes.assets/image-20230319150602285.png)
 
 > Dashboard提供了kubectl的绝大部分功能，这里不再一一演示
 
