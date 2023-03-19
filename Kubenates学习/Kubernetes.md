@@ -5241,19 +5241,36 @@ NAME            HOSTS                                  ADDRESS         PORTS    
 ingress-https   nginx.itheima.com,tomcat.itheima.com   10.104.184.38   80, 443   2m42s
 
 # 查看详情
-[root@k8s-master01 ~]# kubectl describe ing ingress-https -n dev
-...
-TLS:
-  tls-secret terminates nginx.itheima.com,tomcat.itheima.com
+[root@master ingress]# kubectl  describe ingresses ingress-http -n dev
+Name:             ingress-http
+Namespace:        dev
+Address:          10.97.197.0
+Default backend:  default-http-backend:80 (<none>)
 Rules:
-Host              Path Backends
-----              ---- --------
-nginx.itheima.com  /  nginx-service:80 (10.244.1.97:80,10.244.1.98:80,10.244.2.119:80)
-tomcat.itheima.com /  tomcat-service:8080(10.244.1.99:8080,10.244.2.117:8080,10.244.2.120:8080)
-...
+  Host                Path  Backends
+  ----                ----  --------
+  nginx.itheima.com   
+                      /   nginx-service:80 (10.244.1.142:80,10.244.1.143:80,10.244.2.220:80)
+  tomcat.itheima.com  
+                      /   tomcat-service:8080 (10.244.1.144:8080,10.244.2.219:8080,10.244.2.221:8080)
+Annotations:
+Events:
+  Type    Reason  Age   From                      Message
+  ----    ------  ----  ----                      -------
+  Normal  CREATE  12m   nginx-ingress-controller  Ingress dev/ingress-http
+  Normal  UPDATE  12m   nginx-ingress-controller  Ingress dev/ingress-http
+  
+# 获取ingress的端口ip和信息  
+[root@master ingress]# kubectl get service -n ingress-nginx 
+NAME            TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)                      AGE
+ingress-nginx   NodePort   10.97.197.0   <none>        80:30655/TCP,443:31288/TCP   80m
 
-# 下面可以通过浏览器访问https://nginx.itheima.com:31335 和 https://tomcat.itheima.com:31335来查看了
+# 下面可以通过浏览器访问https://nginx.itheima.com:31288 和 https://tomcat.itheima.com:31288 来查看了
 ```
+
+
+
+
 
 # 8. 数据存储
 
@@ -5263,9 +5280,13 @@ Volume是Pod中能够被多个容器访问的共享目录，它被定义在Pod�
 
 kubernetes的Volume支持多种类型，比较常见的有下面几个：
 
-- 简单存储：EmptyDir、HostPath、NFS
-- 高级存储：PV、PVC
-- 配置存储：ConfigMap、Secret
+- **简单存储：EmptyDir、HostPath、NFS**
+- **高级存储：PV、PVC**
+- **配置存储：ConfigMap、Secret**
+
+
+
+
 
 ## 8.1 基本存储
 
@@ -5273,16 +5294,20 @@ kubernetes的Volume支持多种类型，比较常见的有下面几个：
 
 EmptyDir是最基础的Volume类型，一个EmptyDir就是Host上的一个空目录。
 
-EmptyDir是在Pod被分配到Node时创建的，它的初始内容为空，并且无须指定宿主机上对应的目录文件，因为kubernetes会自动分配一个目录，当Pod销毁时， EmptyDir中的数据也会被永久删除。 EmptyDir用途如下：
+EmptyDir是在Pod被分配到Node时创建的，它的初始内容为空，并且无须指定宿主机上对应的目录文件，因为kubernetes会自动分配一个目录，当Pod销毁时， EmptyDir中的数据也会被永久删除。 
 
-- 临时空间，例如用于某些应用程序运行时所需的临时目录，且无须永久保留
-- 一个容器需要从另一个容器中获取数据的目录（多容器共享目录）
+***EmptyDir用途如下：***
+
+- **临时空间，例如用于某些应用程序运行时所需的临时目录，且无须永久保留**
+- **一个容器需要从另一个容器中获取数据的目录（多容器共享目录）**
 
 接下来，通过一个容器之间文件共享的案例来使用一下EmptyDir。
 
 在一个Pod中准备两个容器nginx和busybox，然后声明一个Volume分别挂在到两个容器的目录中，然后nginx容器负责向Volume中写日志，busybox中通过命令将日志内容读到控制台。
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h2dm06ej30qz0bmwfi.jpg)
+![img](./Kubenetes.assets/20230318-001.png)
+
+
 
 创建一个volume-emptydir.yaml
 
@@ -5327,17 +5352,21 @@ volume-emptydir       2/2     Running   0          97s   10.42.2.9   node1  ....
 ......
 
 # 通过kubectl logs命令查看指定容器的标准输出
-[root@k8s-master01 ~]# kubectl logs -f volume-emptydir -n dev -c busybox
-10.42.1.0 - - [27/Jun/2021:15:08:54 +0000] "GET / HTTP/1.1" 200 612 "-" "curl/7.29.0" "-"
+[root@master storage]# kubectl logs -f volume-emptydir -n dev -c busybox
+10.244.0.0 - - [19/Mar/2023:03:06:06 +0000] "GET / HTTP/1.1" 200 612 "-" "curl/7.29.0" "-"
 ```
+
+
+
+
 
 ### 8.1.2 HostPath
 
 上节课提到，EmptyDir中数据不会被持久化，它会随着Pod的结束而销毁，如果想简单的将数据持久化到主机中，可以选择HostPath。
 
-HostPath就是将Node主机中一个实际目录挂在到Pod中，以供容器使用，这样的设计就可以保证Pod销毁了，但是数据依据可以存在于Node主机上。
+**HostPath就是将Node主机中一个实际目录挂在到Pod中**，以供容器使用，这样的设计就可以保证Pod销毁了，但是数据依据可以存在于Node主机上。
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h2hdtwsj30ve0ejjsu.jpg)
+![img](./Kubenetes.assets/202303180-002.png)
 
 创建一个volume-hostpath.yaml：
 
@@ -5365,7 +5394,7 @@ spec:
   volumes:
   - name: logs-volume
     hostPath: 
-      path: /root/logs
+      path: /root/HostPathLogDir
       type: DirectoryOrCreate  # 目录存在就使用，不存在就先创建后使用
 ```
 
@@ -5395,19 +5424,39 @@ pod-volume-hostpath   2/2     Running   0          16s   10.42.2.10     node1  .
 
 # 接下来就可以去host的/root/logs目录下查看存储的文件了
 ###  注意: 下面的操作需要到Pod所在的节点运行（案例中是node1）
-[root@node1 ~]# ls /root/logs/
-access.log  error.log
+[root@node1 HostPathLogDir]# ll
+总用量 0
+-rw-r--r-- 1 root root 0 3月  19 11:16 access.log
+-rw-r--r-- 1 root root 0 3月  19 11:16 error.log
+
 
 # 同样的道理，如果在此目录下创建一个文件，到容器中也是可以看到的
+# 手动新增一个文件
+[root@node1 HostPathLogDir]# ll
+总用量 4
+-rw-r--r-- 1 root root  0 3月  19 11:16 access.log
+-rw-r--r-- 1 root root  0 3月  19 11:16 error.log
+-rw-r--r-- 1 root root 13 3月  19 11:18 test.log
+
+# 进入到容器里面 查询数据 发现文件已经同步
+# ls
+access.log  error.log  test.log
+# pwd
+/var/log/nginx
+
 ```
 
-### 8.1.3 NFS
+
+
+
+
+### 8.1.3 ⭐️ NFS
 
 HostPath可以解决数据持久化的问题，但是一旦Node节点故障了，Pod如果转移到了别的节点，又会出现问题了，此时需要准备单独的网络存储系统，比较常用的用NFS、CIFS。
 
 NFS是一个网络文件存储系统，可以搭建一台NFS服务器，然后将Pod中的存储直接连接到NFS系统上，这样的话，无论Pod在节点上怎么转移，只要Node跟NFS的对接没问题，数据就可以成功访问。
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h2mfijvj31000at75s.jpg)
+![img](./Kubenetes.assets/20230318-003.png)
 
 1）首先要准备nfs的服务器，这里为了简单，直接是master节点做nfs服务器
 
@@ -5460,7 +5509,7 @@ spec:
   volumes:
   - name: logs-volume
     nfs:
-      server: 192.168.5.6  #nfs服务器地址
+      server: 192.168.191.158  #nfs服务器地址
       path: /root/data/nfs #共享文件路径
 ```
 
@@ -5472,30 +5521,46 @@ spec:
 pod/volume-nfs created
 
 # 查看pod
-[root@k8s-master01 ~]# kubectl get pods volume-nfs -n dev
-NAME                  READY   STATUS    RESTARTS   AGE
-volume-nfs        2/2     Running   0          2m9s
+[root@node1 HostPathLogDir]# kubectl  get pods -n dev -o wide
+NAME              READY   STATUS    RESTARTS   AGE    IP             NODE    NOMINATED NODE   READINESS GATES
+volume-hostpath   2/2     Running   0          24m    10.244.2.222   node1   <none>           <none>
+volume-nfs        2/2     Running   0          116s   10.244.1.146   node2   <none>           <none>
+
 
 # 查看nfs服务器上的共享目录，发现已经有文件了
-[root@k8s-master01 ~]# ls /root/data/
-access.log  error.log
+[root@master nfs]# ll
+总用量 0
+-rw-r--r-- 1 root root 0 3月  19 11:39 access.log
+-rw-r--r-- 1 root root 0 3月  19 11:39 error.log
+[root@master nfs]# tail -f -n 100 access.log 
+10.244.2.0 - - [19/Mar/2023:03:40:41 +0000] "GET / HTTP/1.1" 200 612 "-" "curl/7.29.0" "-"
+10.244.2.0 - - [19/Mar/2023:03:40:52 +0000] "GET / HTTP/1.1" 200 612 "-" "curl/7.29.0" "-"
+10.244.2.0 - - [19/Mar/2023:03:40:52 +0000] "GET / HTTP/1.1" 200 612 "-" "curl/7.29.0" "-"
+10.244.2.0 - - [19/Mar/2023:03:40:53 +0000] "GET / HTTP/1.1" 200 612 "-" "curl/7.29.0" "-"
+10.244.2.0 - - [19/Mar/2023:03:40:54 +0000] "GET / HTTP/1.1" 200 612 "-" "curl/7.29.0" "-"
 ```
+
+
+
+
 
 ## 8.2 高级存储
 
 前面已经学习了使用NFS提供存储，此时就要求用户会搭建NFS系统，并且会在yaml配置nfs。由于kubernetes支持的存储系统有很多，要求客户全都掌握，显然不现实。为了能够屏蔽底层存储实现的细节，方便用户使用， kubernetes引入PV和PVC两种资源对象。
 
-PV（Persistent Volume）是持久化卷的意思，是对底层的共享存储的一种抽象。一般情况下PV由kubernetes管理员进行创建和配置，它与底层具体的共享存储技术有关，并通过插件完成与共享存储的对接。
+**PV（Persistent Volume）**是**持久化卷**的意思，**是对底层的共享存储的一种抽象**。一般情况下PV由kubernetes管理员进行创建和配置，它与底层具体的共享存储技术有关，并通过插件完成与共享存储的对接。
 
-PVC（Persistent Volume Claim）是持久卷声明的意思，是用户对于存储需求的一种声明。换句话说，PVC其实就是用户向kubernetes系统发出的一种资源需求申请。
+**PVC（Persistent Volume Claim）**是**持久卷声明**的意思，**是用户对于存储需求的一种声明**。换句话说，***PVC其实就是用户向kubernetes系统发出的一种资源需求申请。***
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h2uh4jwj30uj0hu406.jpg)
+![img](./Kubenetes.assets/20230318-004.png)
 
 使用了PV和PVC之后，工作可以得到进一步的细分：
 
-- 存储：存储工程师维护
-- PV： kubernetes管理员维护
-- PVC：kubernetes用户维护
+- **存储：存储工程师维护**
+- **PV： kubernetes管理员维护**
+- **PVC：kubernetes用户维护**
+
+ 
 
 ### 8.2.1 PV
 
@@ -5573,9 +5638,9 @@ PV 的关键配置参数说明：
 
 # 暴露服务
 [root@nfs ~]# more /etc/exports
-/root/data/pv1     192.168.5.0/24(rw,no_root_squash)
-/root/data/pv2     192.168.5.0/24(rw,no_root_squash)
-/root/data/pv3     192.168.5.0/24(rw,no_root_squash)
+/root/data/pv1     192.168.191.0/24(rw,no_root_squash)
+/root/data/pv2     192.168.191.0/24(rw,no_root_squash)
+/root/data/pv3     192.168.191.0/24(rw,no_root_squash)
 
 # 重启服务
 [root@nfs ~]#  systemctl restart nfs
@@ -5596,7 +5661,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   nfs:
     path: /root/data/pv1
-    server: 192.168.5.6
+    server: 192.168.191.158
 
 ---
 
@@ -5612,7 +5677,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   nfs:
     path: /root/data/pv2
-    server: 192.168.5.6
+    server: 192.168.191.158
     
 ---
 
@@ -5628,7 +5693,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   nfs:
     path: /root/data/pv3
-    server: 192.168.5.6
+    server: 192.168.191.158
 ```
 
 ```shell
@@ -5639,16 +5704,18 @@ persistentvolume/pv2 created
 persistentvolume/pv3 created
 
 # 查看pv
-[root@k8s-master01 ~]# kubectl get pv -o wide
-NAME   CAPACITY   ACCESS MODES  RECLAIM POLICY  STATUS      AGE   VOLUMEMODE
-pv1    1Gi        RWX            Retain        Available    10s   Filesystem
-pv2    2Gi        RWX            Retain        Available    10s   Filesystem
-pv3    3Gi        RWX            Retain        Available    9s    Filesystem
+[root@master storage]# kubectl get pv -n dev
+NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE
+pv1    1Gi        RWX            Retain           Available                                   14s
+pv2    2Gi        RWX            Retain           Available                                   14s
+pv3    3Gi        RWX            Retain           Available                                   14s
 ```
+
+
 
 ### 8.2.2 PVC
 
-PVC是资源的申请，用来声明对存储空间、访问模式、存储类别需求信息。下面是资源清单文件:
+**PVC是资源的申请，用来声明对存储空间、访问模式、存储类别需求信息**。下面是资源清单文件:
 
 ```yaml
 apiVersion: v1
@@ -5722,7 +5789,7 @@ spec:
   - ReadWriteMany
   resources:
     requests:
-      storage: 1Gi
+      storage: 5Gi
 ```
 
 ```shell
@@ -5733,18 +5800,19 @@ persistentvolumeclaim/pvc2 created
 persistentvolumeclaim/pvc3 created
 
 # 查看pvc
-[root@k8s-master01 ~]# kubectl get pvc  -n dev -o wide
-NAME   STATUS   VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE   VOLUMEMODE
-pvc1   Bound    pv1      1Gi        RWX                           15s   Filesystem
-pvc2   Bound    pv2      2Gi        RWX                           15s   Filesystem
-pvc3   Bound    pv3      3Gi        RWX                           15s   Filesystem
+[root@master storage]# kubectl  get pvc -n dev
+NAME   STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+pvc1   Bound     pv1      1Gi        RWX                           9s
+pvc2   Bound     pv2      2Gi        RWX                           9s
+pvc3   Pending                                                     9s
+
 
 # 查看pv
-[root@k8s-master01 ~]# kubectl get pv -o wide
-NAME  CAPACITY ACCESS MODES  RECLAIM POLICY  STATUS    CLAIM       AGE     VOLUMEMODE
-pv1    1Gi        RWx        Retain          Bound    dev/pvc1    3h37m    Filesystem
-pv2    2Gi        RWX        Retain          Bound    dev/pvc2    3h37m    Filesystem
-pv3    3Gi        RWX        Retain          Bound    dev/pvc3    3h37m    Filesystem   
+[root@master storage]# kubectl  get pv -n dev
+NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM      STORAGECLASS   REASON   AGE
+pv1    1Gi        RWX            Retain           Bound       dev/pvc1                           10m
+pv2    2Gi        RWX            Retain           Bound       dev/pvc2                           10m
+pv3    3Gi        RWX            Retain           Available                                      10m
 ```
 
 2) 创建pods.yaml, 使用pv
@@ -5802,27 +5870,33 @@ pod1   1/1     Running   0          14s   10.244.1.69   node1
 pod2   1/1     Running   0          14s   10.244.1.70   node1  
 
 # 查看pvc
-[root@k8s-master01 ~]# kubectl get pvc -n dev -o wide
-NAME   STATUS   VOLUME   CAPACITY   ACCESS MODES      AGE   VOLUMEMODE
-pvc1   Bound    pv1      1Gi        RWX               94m   Filesystem
-pvc2   Bound    pv2      2Gi        RWX               94m   Filesystem
-pvc3   Bound    pv3      3Gi        RWX               94m   Filesystem
+[root@master storage]# kubectl get pvc -n dev -o wide
+NAME   STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE     VOLUMEMODE
+pvc1   Bound     pv1      1Gi        RWX                           3m43s   Filesystem
+pvc2   Bound     pv2      2Gi        RWX                           3m43s   Filesystem
+pvc3   Pending                                                     3m43s   Filesystem
+
 
 # 查看pv
-[root@k8s-master01 ~]# kubectl get pv -n dev -o wide
-NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM       AGE     VOLUMEMODE
-pv1    1Gi        RWX            Retain           Bound    dev/pvc1    5h11m   Filesystem
-pv2    2Gi        RWX            Retain           Bound    dev/pvc2    5h11m   Filesystem
-pv3    3Gi        RWX            Retain           Bound    dev/pvc3    5h11m   Filesystem
+[root@master storage]# kubectl get pv -n dev -o wide
+NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM      STORAGECLASS   REASON   AGE   VOLUMEMODE
+pv1    1Gi        RWX            Retain           Bound       dev/pvc1                           14m   Filesystem
+pv2    2Gi        RWX            Retain           Bound       dev/pvc2                           14m   Filesystem
+pv3    3Gi        RWX            Retain           Available                                      14m   Filesystem
+
 
 # 查看nfs中的文件存储
-[root@nfs ~]# more /root/data/pv1/out.txt
-node1
-node1
-[root@nfs ~]# more /root/data/pv2/out.txt
-node2
-node2
+[root@master storage]# more /root/data/pv1/out.txt 
+pod1
+pod1
+[root@master storage]# more /root/data/pv2/out.txt 
+pod2
+pod2
 ```
+
+
+
+
 
 ### 8.2.3 生命周期
 
@@ -5851,7 +5925,11 @@ PVC和PV是一一对应的，PV和PVC之间的相互作用遵循以下生命周�
 
   对于PV，管理员可以设定回收策略，用于设置与之绑定的PVC释放资源之后如何处理遗留数据的问题。只有PV的存储空间完成回收，才能供新的PVC绑定和使用
 
-![img](https://tva1.sinaimg.cn/large/008i3skNgy1gy0h31cz9bj30xv0f20vb.jpg)
+![img](./Kubenetes.assets/20230318-005.png)
+
+
+
+
 
 ## 8.3 配置存储
 
@@ -5942,9 +6020,13 @@ password:123456
 # 此时如果更新configmap的内容, 容器中的值也会动态更新
 ```
 
+
+
+
+
 ### 8.3.2 Secret
 
-在kubernetes中，还存在一种和ConfigMap非常类似的对象，称为Secret对象。它主要用于存储敏感信息，例如密码、秘钥、证书等等。
+在kubernetes中，还存在一种和ConfigMap非常类似的对象，称为Secret对象。它主要**用于存储敏感信息，例如密码、秘钥、证书**等等。
 
 1) 首先使用base64对数据进行编码
 
