@@ -5959,7 +5959,7 @@ data:
 configmap/configmap created
 
 # 查看configmap详情
-[root@k8s-master01 ~]# kubectl describe cm configmap -n dev
+[root@master storage]# kubectl describe configmaps configmap -n dev
 Name:         configmap
 Namespace:    dev
 Labels:       <none>
@@ -5973,6 +5973,7 @@ username:admin
 password:123456
 
 Events:  <none>
+
 ```
 
 接下来创建一个pod-configmap.yaml，将上面创建的configmap挂载进去
@@ -6057,12 +6058,29 @@ data:
 secret/secret created
 
 # 查看secret详情
-[root@k8s-master01 ~]# kubectl describe secret secret -n dev
+[root@master storage]# kubectl describe secrets -n dev
+Name:         default-token-dsk9l
+Namespace:    dev
+Labels:       <none>
+Annotations:  kubernetes.io/service-account.name: default
+              kubernetes.io/service-account.uid: 56562f9b-cf97-4bf4-b973-fe215b7ee70a
+
+Type:  kubernetes.io/service-account-token
+
+Data
+====
+ca.crt:     1025 bytes
+namespace:  3 bytes
+token:      eyJhbGciOiJSUzI1NiIsImtpZCI6ImlrejEtZWNKcW9MeEU0RFc0bU9VaVRHQnY0T1U5X3FRWFB0WXNrMXNwdlUifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZXYiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlY3JldC5uYW1lIjoiZGVmYXVsdC10b2tlbi1kc2s5bCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiNTY1NjJmOWItY2Y5Ny00YmY0LWI5NzMtZmUyMTViN2VlNzBhIiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50OmRldjpkZWZhdWx0In0.GzkuCQxHtA5Oi-HOW3GKWxUdinVDW8Lph5xh195EnxBg-iaOoMsH_XIJc7B_JleKtnE2U9ocCpX357_fG3WAgwTqv1pR7CjcjdJIrSjgdIwgGw63BJHp0yJGiIr5oKQQ4ss0uryMtGiOx-VId4NGYqI9ZbFjGgIThfeevvUcQH5RVATImD39PeWo1aRgHXBGm-3oTvyIEYeXplnYBZLCyqzmW0RL9kV0vtalmlK5XaQHaFrKDflsWvv24HZoi_apuVbsTHCleb23dDHeUjvIAHzB0RDZIUr6dwwi9NvwYFqtRas_bMwKJiHeuhGMr1LAUfFPshXflK4SUnWNPho2Yg
+
+
 Name:         secret
 Namespace:    dev
 Labels:       <none>
 Annotations:  <none>
+
 Type:  Opaque
+
 Data
 ====
 password:  6 bytes
