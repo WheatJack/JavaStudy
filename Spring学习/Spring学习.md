@@ -3280,10 +3280,6 @@ public class Test$Proxy0Dump {
 
 
 
-
-
-
-
 #### 变量知识点
 
 | 变量类型 | 定义位置       | 默认值     | 在内存中的位置   | 生命周期                               |
@@ -3302,13 +3298,282 @@ public class Test$Proxy0Dump {
 
 
 
+#### 8.CGlib代理进阶
+
+##### 8.1 CGlib 代理原理
+
+> CGlib：需要继承目标类
+>
+> JDK动态代理：需要实现接口
+
+**目标类**
+
+```java
+public class Target {
+
+    public void save() {
+        System.out.println("save");
+    }
+
+    public void save(int i) {
+        System.out.println("save--i");
+    }
+
+    public void save(long l) {
+        System.out.println("save---l");
+    }
+
+}
+```
+
+**代理类**
+
+```java
+
+public class Proxy extends Target {
+
+    MethodInterceptor interceptor;
+
+    public void setMethodInterceptor(MethodInterceptor interceptor) {
+        this.interceptor = interceptor;
+    }
+
+    static Method save0;
+    static Method save1;
+    static Method save2;
+
+    static {
+        try {
+            save0 = Target.class.getMethod("save");
+            save1 = Target.class.getMethod("save", int.class);
+            save2 = Target.class.getMethod("save", long.class);
+        } catch (NoSuchMethodException e) {
+            throw new NoSuchMethodError(e.getMessage());
+        }
+    }
+
+    @Override
+    public void save() {
+        try {
+            interceptor.intercept(this, save0, new Object[0], null);
+        } catch (Throwable e) {
+            throw new UndeclaredThrowableException(e);
+        }
+    }
+
+    @Override
+    public void save(int i) {
+        try {
+            interceptor.intercept(this, save1, new Object[]{i}, null);
+        } catch (Throwable e) {
+            throw new UndeclaredThrowableException(e);
+        }
+    }
+
+    @Override
+    public void save(long l) {
+        try {
+            interceptor.intercept(this, save2, new Object[]{l}, null);
+        } catch (Throwable e) {
+            throw new UndeclaredThrowableException(e);
+        }
+    }
+}
+
+```
+
+
+
+**执行方法**
+
+> 使用了反射处理 去调用方法 执行增强
+
+```java
+public class A14CGlib {
+
+    public static void main(String[] args) {
+        Target target = new Target();
+        Proxy proxy = new Proxy();
+        proxy.setMethodInterceptor(new MethodInterceptor() {
+            @Override
+            public Object intercept(Object o, Method method, Object[] args, MethodProxy methodProxy) throws Throwable {
+                System.out.println("before.....");
+                // 使用反射 去处理
+                Object invoke = method.invoke(target, args);
+                System.out.println("after.....");
+                return invoke;
+            }
+        });
+        proxy.save();
+        proxy.save(1);
+        proxy.save(2L);
+    }
+}
+```
+
+结果输出：
+
+```
+before.....
+save
+after.....
+before.....
+save--i
+after.....
+before.....
+save---l
+after.....
+```
 
 
 
 
 
+##### 8.2 CGLib 代理原理-MethodProxy
+
+> **MethodProxy 不使用反射，而直接使用代理处理**
+
+**目标类**
+
+```java
+public class Target {
+
+    public void save() {
+        System.out.println("save");
+    }
+
+    public void save(int i) {
+        System.out.println("save--i");
+    }
+
+    public void save(long l) {
+        System.out.println("save---l");
+    }
+
+}
+```
+
+**代理类**
+
+```java
+public class Proxy extends Target {
+
+    MethodInterceptor interceptor;
+
+    public void setMethodInterceptor(MethodInterceptor interceptor) {
+        this.interceptor = interceptor;
+    }
+
+    static Method save0;
+    static Method save1;
+    static Method save2;
+    static MethodProxy methodProxy0;
+    static MethodProxy methodProxy1;
+    static MethodProxy methodProxy2;
+
+    static {
+        try {
+            save0 = Target.class.getMethod("save");
+            save1 = Target.class.getMethod("save", int.class);
+            save2 = Target.class.getMethod("save", long.class);
+            methodProxy0 = MethodProxy.create(Target.class, Proxy.class, "()V", "save", "superSave");
+            methodProxy1 = MethodProxy.create(Target.class, Proxy.class, "(I)V", "save", "superSave");
+            methodProxy2 = MethodProxy.create(Target.class, Proxy.class, "(J)V", "save", "superSave");
+        } catch (NoSuchMethodException e) {
+            throw new NoSuchMethodError(e.getMessage());
+        }
+    }
+
+    //  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>带原始功能的的方法
+    public void superSave() {
+        super.save();
+    }
+
+    public void superSave(int i) {
+        super.save(i);
+    }
+
+    public void superSave(long l) {
+        super.save(l);
+    }
+
+    //  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>带目标增强的方法
+    @Override
+    public void save() {
+        try {
+            interceptor.intercept(this, save0, new Object[0], methodProxy0);
+        } catch (Throwable e) {
+            throw new UndeclaredThrowableException(e);
+        }
+    }
+
+    @Override
+    public void save(int i) {
+        try {
+            interceptor.intercept(this, save1, new Object[]{i}, methodProxy1);
+        } catch (Throwable e) {
+            throw new UndeclaredThrowableException(e);
+        }
+    }
+
+    @Override
+    public void save(long l) {
+        try {
+            interceptor.intercept(this, save2, new Object[]{l}, methodProxy2);
+        } catch (Throwable e) {
+            throw new UndeclaredThrowableException(e);
+        }
+    }
+}
+
+```
 
 
+
+**执行方法**
+
+> 不使用反射去增强
+
+```java
+public class A14CGlib {
+
+    public static void main(String[] args) {
+        Target target = new Target();
+        Proxy proxy = new Proxy();
+        proxy.setMethodInterceptor(new MethodInterceptor() {
+            @Override
+            public Object intercept(Object o, Method method, Object[] args, MethodProxy methodProxy) throws Throwable {
+                System.out.println("before.....");
+                // 使用反射 去处理
+//                Object invoke = method.invoke(target, args);
+                // 不使用反射 结合目标用
+//                Object invoke = methodProxy.invoke(target, args);
+                // 没有反射 结合代理使用
+                Object invoke = methodProxy.invokeSuper(o, args);
+                System.out.println("after.....");
+                return invoke;
+            }
+        });
+        proxy.save();
+        proxy.save(1);
+        proxy.save(2L);
+    }
+}
+```
+
+结果输出：
+
+```
+before.....
+save
+after.....
+before.....
+save--i
+after.....
+before.....
+save---l
+after.....
+```
 
 
 
