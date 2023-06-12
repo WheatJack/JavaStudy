@@ -771,21 +771,81 @@ db.comment.find({_id:"1"},{articleid:1,likenum:1})
 
 #### 3.4.3 文档的更新
 
+更新文档的语法:
+
+```shell
+db.collection.update(query, update, options) //或
+db.collection.update(
+<query>, <update>, {
+upsert: <boolean>,
+multi: <boolean>,
+writeConcern: <document>,
+collation: <document>,
+arrayFilters: [ <filterdocument1>, ... ],
+hint: <document|string> // Available starting in MongoDB 4.2
+} )
+```
+
+参数:
+
+| Parameter    | Type                 | Description                                                  |
+| ------------ | -------------------- | ------------------------------------------------------------ |
+| query        | document             | 更新的选择条件。可以使用与find()方法中相同的查询选择器，类似sql update查询内where后面的。。在3.0版中进行了更改:当使用upsert:true执行update()时，如果查询使用点表示法在_id字段上指定条件，则MongoDB将拒绝插入新文档。 |
+| update       | document or pipeline | 要应用的修改。该值可以是:包含更新运算符表达式的文档，或仅包含:对的替换文档，或在MongoDB 4.2中启动聚合管道。管道可以由以下阶段组成: set unset replaceWith。换句话说:它是update的对象和一些更新的操作符(如 inc...)等，也可以理解 |
+| upsert       | boolean              | 可选。如果设置为true，则在没有与查询条件匹配的文档时创建新文档。默认值为false，如果找不到匹配项，则不会插入新文档。 |
+| multi        | boolean              | 可选。如果设置为true，则更新符合查询条件的多个文档。如果设置为false，则更新一个文档。默认值为false。 |
+| writeConcern | document             | 可选。表示写问题的文档。抛出异常的级别。                     |
+| collation    | document             | 可选。指定要用于操作的校对规则。校对规则允许用户为字符串比较指定特定于语言的规则，例如字母大小写和重音标记的规则。 |
+
+提示: 主要关注前四个参数即可。
+
+【示例】
+
+(1)局部修改
+
+如果我们想修改_id为1的记录，点赞量为1001，输入以下语句:
+
+```
+db.comment.updateOne({_id:"1"},{$set:{likenum:NumberInt(100000)}});
+```
+
+(2)批量的修改
+
+```shell
+db.comment.updateMany({articleid:"100001"},{$set:{content:"双击777"}});
+```
+
+(3)列值增长的修改
+
+如果我们想实现对某列值在原有值的基础上进行增加或减少，可以使用 $inc 运算符来实现。
+
+需求:对3号数据的点赞数，每次递增1
+
+```shell
+db.comment.updateOne({_id:"3"},{$inc:{likenum:NumberInt(1)}})
+```
 
 
 
 
 
+#### 3.4.4 删除文档
 
+删除文档的语法结构:
 
+```shell
+db.集合名称.remove(条件);
+```
 
+以下语句可以将数据全部删除，请慎用
 
+```shell
+db.comment.deleteMany({});
+```
 
+如果删除_id=1的记录，输入以下语句
 
-
-
-
-
-
-
+```shell
+db.comment.deleteOne({_id:1})
+```
 
