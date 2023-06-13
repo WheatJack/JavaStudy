@@ -827,8 +827,6 @@ db.comment.updateOne({_id:"3"},{$inc:{likenum:NumberInt(1)}})
 
 
 
-
-
 #### 3.4.4 删除文档
 
 删除文档的语法结构:
@@ -848,4 +846,257 @@ db.comment.deleteMany({});
 ```shell
 db.comment.deleteOne({_id:1})
 ```
+
+
+
+### 3.5 文档的分页查询
+
+#### 3.5.1 统计查询
+
+统计查询使用count()方法，语法如下:
+
+```
+db.collection.countDocuments(query, options)
+db.comment.countDocuments({_id:"1"})
+```
+
+参数:
+
+| Parameter | Type     | Description                    |
+| --------- | -------- | ------------------------------ |
+| query     | document | 查询选择条件。                 |
+| options   | document | 可选。用于修改计数的额外选项。 |
+
+提示: 可选项暂时不使用。
+
+#### 3.5.2 分页列表查询
+
+可以使用limit()方法来读取指定数量的数据，使用skip()方法来跳过指定数量的数据。
+
+基本语法如下所示:
+
+```
+db.COLLECTION_NAME.find().limit(NUMBER).skip(NUMBER)
+```
+
+如果你想返回指定条数的记录，可以在find方法后调用limit来返回结果(TopN)，默认值20，例如:
+
+```
+db.comment.find().limit(2)
+```
+
+skip方法同样接受一个数字参数作为跳过的记录条数。(前N个不要),默认值是0
+
+```
+db.comment.find().limit(2).skip(3);
+```
+
+分页查询:需求:每页2个，第二页开始:跳过前两条数据，接着值显示3和4条数据
+
+```
+//第一页 
+db.comment.find().skip(0).limit(2) 
+//第二页 
+db.comment.find().skip(2).limit(2) 
+//第三页 
+db.comment.find().skip(4).limit(2)
+```
+
+
+
+#### 3.5.3 排序查询
+
+sort() 方法对数据进行排序，sort() 方法可以通过参数指定排序的字段，并使用 1 和 -1 来指定排序的方式，其中 1 为升序排列，而 -1 是用于降序排列。
+
+语法如下所示:
+
+```
+db.COLLECTION_NAME.find().sort({KEY:1})
+或 
+db.集合名称.find().sort(排序方式)
+```
+
+对userid降序排列，并对访问量进行升序排列
+
+```
+db.comment.find().sort({userid:-1,likenum:1}).skip(0).limit(100)
+
+```
+
+提示：skip(), limilt(), sort()三个放在一起执行的时候，执行的顺序是先 sort(), 然后是 skip()，最后是显示的 limit()，和命令编写顺序无关。
+
+
+
+### 3.6 文档的更多查询
+
+#### 3.6.1 正则的复杂条件查询
+
+MongoDB的模糊查询是通过正则表达式的方式实现的。格式为:
+
+```
+db.collection.find({field:/正则表达式/}) 
+或
+db.集合.find({字段:/正则表达式/})
+```
+
+提示:正则表达式是js的语法，直接量的写法。
+
+例如，我要查询评论内容包含“天气”的所有文档，代码如下:
+
+```
+db.comment.find({content:/天气/})
+```
+
+
+
+#### 3.6.2 比较查询
+
+<, <=, >, >= 这个操作符也是很常用的，格式如下:
+
+```shell
+db.集合名称.find({ "field" : { $gt: value }}) // 大于: field > value 
+db.集合名称.find({ "field" : { $lt: value }}) // 小于: field < value 
+db.集合名称.find({ "field" : { $gte: value }}) // 大于等于: field >= value 
+db.集合名称.find({ "field" : { $lte: value }}) // 小于等于: field <= value 
+db.集合名称.find({ "field" : { $ne: value }}) // 不等于: field != value
+
+
+# exam
+db.comment.find({likenum:{$gt:800}})
+```
+
+
+
+#### 3.6.3 包含查询
+
+包含使用$in操作符。 示例:查询评论的集合中likenum字段包含10或888的文档
+
+```shell
+db.comment.find({likenum:{$in:[10,888]}})
+```
+
+不包含使用$nin操作符。 示例:查询评论集合中likenum字段不包含10和888的文档
+
+```shell
+db.comment.find({likenum:{$nin:[10,888]}})
+```
+
+
+
+#### 3.6.4 条件连接查询
+
+我们如果需要查询同时满足两个以上条件，需要使用$and操作符将条件进行关联。(相 当于SQL的and) 格式为:
+
+```shell
+$and:[{ },{ },{}]
+```
+
+示例:查询评论集合中likenum大于等于700 并且articleid 在100001，200001的文档:
+
+```
+db.comment.find({$and:[{likenum:{$gte:NumberInt(700)}},{articleid:{$in: ['100001','200001']}}]})
+```
+
+如果两个以上条件之间是或者的关系，我们使用 操作符进行关联，与前面 and的使用方式相同 格式为:
+
+```
+$or:[{ },{ },{ }]
+```
+
+示例:查询评论集合中userid为1003，或者点赞数小于1000的文档记录
+
+```shell
+db.comment.find({$or:[{userid:'1003'},{likenum:{$in:[888,10]}}]}).skip(2).limit(5).sort({likenum:1})
+```
+
+
+
+### 3.7 常用命令小结
+
+```
+选择切换数据库:use articledb
+插入数据:db.comment.insertOne({bson数据})
+查询所有数据:db.comment.find();
+条件查询数据:db.comment.find({条件})
+查询符合条件的第一条记录:db.comment.findOne({条件}) 
+查询符合条件的前几条记录:db.comment.find({条件}).limit(条数) 
+查询符合条件的跳过的记录:db.comment.find({条件}).skip(条数) 
+修改数据:db.comment.updateOne({条件},{修改后的数据}) 
+或 db.comment.updateOne({条件},{$set:{要修改部分的字段:数据}) 
+修改数据并自增某字段值:db.comment.updateOne({条件},{$inc:{自增的字段:步进值}}) 
+删除数据:db.comment.deleteOne({条件})
+统计查询:db.comment.countDocuments({条件})
+模糊查询:db.comment.find({字段名:/正则表达式/})
+条件比较运算:db.comment.find({字段名:{$gt:值}}) 
+包含查询:db.comment.find({字段名:{$in:[值1，值2]}})
+或 db.comment.find({字段名:{$nin:[值1，值2]}}) 
+条件连接查询:db.comment.find({$and:[{条件1},{条件2}]}) 
+或 db.comment.find({$or:[{条件1},{条件2}]})
+```
+
+
+
+## 4、索引-Index
+
+### 4.1 概述
+
+索引支持在MongoDB中高效地执行查询。如果没有索引，MongoDB必须执行全集合扫描，即扫描集合中的每个文档，以选择与查询语句 匹配的文档。这种扫描全集合的查询效率是非常低的，特别在处理大量的数据时，查询可以要花费几十秒甚至几分钟，这对网站的性能是非常致命的。
+
+如果查询存在适当的索引，MongoDB可以使用该索引限制必须检查的文档数。
+
+索引是特殊的数据结构，它以易于遍历的形式存储集合数据集的一小部分。索引存储特定字段或一组字段的值，按字段值排序。索引项的排序支持有效的相等匹配和基于范围的查询操作。此外，MongoDB还可以使用索引中的排序返回排序结果。
+
+官方网址：https://www.mongodb.com/docs/manual/indexes/
+
+了解: MongoDB索引使用B树数据结构(确切的说是B-Tree，MySQL是B+Tree)
+
+
+
+### 4.2 索引的类型
+
+#### 4.2.1 单字段索引
+
+MongoDB支持在文档的单个字段上创建用户定义的升序/降序索引，称为单字段索引(Single Field Index)。
+
+对于单个字段索引和排序操作，索引键的排序顺序(即升序或降序)并不重要，因为MongoDB可以在任何方向上遍历索引。
+
+![image-20230613114846072](./img/image-20230613114846072.png)
+
+
+
+#### 4.2.2 复合索引
+
+MongoDB还支持多个字段的用户定义索引，即复合索引(Compound Index)。
+
+复合索引中列出的字段顺序具有重要意义。例如，如果复合索引由 { userid: 1, score: -1 } 组成，则索引首先按userid正序排序，然后 在每个userid的值内，再在按score倒序排序。
+
+![image-20230613114809804](./img/image-20230613114809804.png)
+
+
+
+#### 4.2.3 其他索引
+
+地理空间索引(Geospatial Index)、文本索引(Text Indexes)、哈希索引(Hashed Indexes)。
+
+**地理空间索引(Geospatial Index)** 
+
+为了支持对地理空间坐标数据的有效查询，MongoDB提供了两种特殊的索引:返回结果时使用平面几何的二维索引和返回结果时使用球面几何的二维球面索引。
+
+**文本索引(Text Indexes)**
+
+MongoDB提供了一种文本索引类型，支持在集合中搜索字符串内容。这些文本索引不存储特定于语言的停止词(例如“the”、“a”、“or”)， 而将集合中的词作为词干，只存储根词。
+
+**哈希索引(Hashed Indexes)**
+
+为了支持基于散列的分片，MongoDB提供了散列索引类型，它对字段值的散列进行索引。这些索引在其范围内的值分布更加随机，但只支持相等匹配，不支持基于范围的查询。
+
+
+
+
+
+
+
+
+
+
 
