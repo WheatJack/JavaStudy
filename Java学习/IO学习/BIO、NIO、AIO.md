@@ -28,45 +28,42 @@ I/O 模型：就是用什么样的通道或者说是通信模式和架构进行�
 
 ####  Java BIO
 
-同步并阻塞(传统阻塞型)，服务器实现模式为一个连接一个线程，即客户端有连接请求时服务器
+同步并阻塞(**传统阻塞型**)，服务器实现模式为一个连接一个线程，即客户端有连接请求时服务器
 端就需要启动一个线程进行处理，如果这个连接不做任何事情会造成不必要的线程开销 【简单示意图
 
-![image-20200615181255063](BIO、NIO、AIO.assets\image-20200615181255063.png)
+![image-20200615181255063](./image/image-20200615181255063.png)
 
 #### Java NIO
 
-Java NIO ： 同步非阻塞，服务器实现模式为一个线程处理多个请求(连接)，即客户端发送的连接请求都会注
+Java NIO ： **同步非阻塞**，服务器实现模式为一个线程处理多个请求(连接)，即客户端发送的连接请求都会注
 册到多路复用器上，多路复用器轮询到连接有 I/O 请求就进行处理 【简单示意图】
 
-![image-20200615180441015](BIO、NIO、AIO.assets\image-20200615180441015.png)
+![image-20200615180441015](./image/image-20200615180441015.png)
 
 ####  Java AIO
 
-Java AIO(NIO.2) ： 异步 异步非阻塞，服务器实现模式为一个有效请求一个线程，客户端的I/O请求都是由OS先完成了再通知服务器应用去启动线程进行处理，一般适用于连接数较
-多且连接时间较长的应用
+Java AIO(NIO.2) ： 异步 异步非阻塞，服务器实现模式为一个有效请求一个线程，客户端的I/O请求都是由OS先完成了再通知服务器应用去启动线程进行处理，一般适用于连接数较多且连接时间较长的应用
 
 
 
 ## 2.3 BIO、NIO、AIO 适用场景分析
 
 1、**BIO** 方式适用于连接数目比较小且固定的架构，这种方式对服务器资源要求比较高，并发局限于应用中，JDK1.4以前的唯一选择，但程序简单易理解。
-2、**NIO** 方式适用于连接数目多且连接比较短（轻操作）的架构，比如聊天服务器，弹幕系统，服务器间通讯等。
-编程比较复杂，JDK1.4 开始支持。
+2、**NIO** 方式适用于连接数目多且连接比较短（轻操作）的架构，比如聊天服务器，弹幕系统，服务器间通讯等。编程比较复杂，JDK1.4 开始支持。
 
-3、AIO 方式使用于连接数目多且连接比较长（重操作）的架构，比如相册服务器，充分调用 OS 参与并发操作，
-编程比较复杂，JDK7 开始支持。
+3、**AIO** 方式使用于连接数目多且连接比较长（重操作）的架构，比如相册服务器，充分调用 OS 参与并发操作，编程比较复杂，JDK7 开始支持。
 
 # 第三章 JAVA BIO深入剖析
 
 ## 3.1 Java BIO 基本介绍
 
 * Java BIO 就是传统的 java io  编程，其相关的类和接口在 java.io
-* BIO(blocking I/O) ： 同步阻塞，服务器实现模式为一个连接一个线程，即客户端有连接请求时服务器端就需
-  要启动一个线程进行处理，如果这个连接不做任何事情会造成不必要的线程开销，可以通过线程池机制改善(实现多个客户连接服务器).
+* BIO(**blocking** I/O) ： 同步阻塞，服务器实现模式为一个连接一个线程，即客户端有连接请求时服务器端就需
+  要启动一个线程进行处理，如果这个连接不做任何事情会造成不必要的线程开销，可以**通过线程池机制改善**(实现多个客户连接服务器).
 
 ## 3.2 Java BIO 工作机制
 
-![image-20200618222916021](BIO、NIO、AIO.assets\image-20200618222916021.png)
+![image-20200618222916021](./image/image-20200618222916021.png)
 
 对 对 BIO  编程流程的梳理
 1) 服务器端启动一个 **ServerSocket**，注册端口，调用accpet方法监听客户端的Socket连接。
@@ -82,11 +79,6 @@ Java AIO(NIO.2) ： 异步 异步非阻塞，服务器实现模式为一个有�
 ### 		客户端案例如下
 
 ```java
-package com.itheima._02bio01;
-
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.net.Socket;
 /**
     目标: Socket网络编程。
 
@@ -137,14 +129,6 @@ public class ClientDemo {
 ### 服务端案例如下
 
 ```java
-package com.itheima._02bio01;
-
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.ServerSocket;
-import java.net.Socket;
-
 /**
  * 服务端
  */
@@ -180,21 +164,11 @@ public class ServerDemo {
 ### 		客户端代码如下
 
 ```java
-package com.itheima._03bio02;
-
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.net.Socket;
-import java.util.Scanner;
-
 /**
     目标: Socket网络编程。
-
     功能1：客户端可以反复发消息，服务端可以反复收消息
-
     小结：
         通信是很严格的，对方怎么发你就怎么收，对方发多少你就只能收多少！！
-
  */
 public class ClientDemo {
     public static void main(String[] args) throws Exception {
@@ -220,14 +194,6 @@ public class ClientDemo {
 ### 		服务端代码如下
 
 ```java
-package com.itheima._03bio02;
-
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.ServerSocket;
-import java.net.Socket;
-
 /**
  * 服务端
  */
@@ -264,7 +230,7 @@ public class ServerDemo {
 
 ​		在上述的案例中，一个服务端只能接收一个客户端的通信请求，**那么如果服务端需要处理很多个客户端的消息通信请求应该如何处理呢**，此时我们就需要在服务端引入线程了，也就是说客户端每发起一个请求，服务端就创建一个新的线程来处理这个客户端的请求，这样就实现了一个客户端一个线程的模型，图解模式如下：
 
-![image-20200615181141593](BIO、NIO、AIO.assets\image-20200615181141593.png)
+![image-20200615181141593](image/image-20200615181141593.png)
 
 ### 客户端案例代码如下
 
@@ -362,7 +328,7 @@ class ServerReadThread extends Thread{
 
 ​		图示如下:
 
-![image-20200619085953166](BIO、NIO、AIO.assets\image-20200619085953166.png)
+![image-20200619085953166](image/image-20200619085953166.png)
 
 ### 客户端源码分析
 
@@ -601,7 +567,7 @@ public class ServerReaderThread extends Thread {
 
 需求：需要实现一个客户端的消息可以发送给所有的客户端去接收。（群聊实现）
 
-![image-20200619123304241](BIO、NIO、AIO.assets\image-20200619123304241.png)
+![image-20200619123304241](image/image-20200619123304241.png)
 
 ### 客户端开发
 
@@ -701,7 +667,7 @@ public class Client {
 
 **项目代码结构演示。**
 
-![image-20200223212913139](BIO、NIO、AIO.assets\image-20200223212913139.png)
+![image-20200223212913139](image/image-20200223212913139.png)
 
 **项目启动步骤：**
 
@@ -709,7 +675,7 @@ public class Client {
 
 * 2.其次，点击客户端类ClientChat类，在弹出的方框中输入服务端的ip和当前客户端的昵称
 
-  ![image-20200223214123052](BIO、NIO、AIO.assets\image-20200223214123052.png)
+  ![image-20200223214123052](image/image-20200223214123052.png)
 
 * 3.登陆进入后的聊天界面如下，即可进行相关操作。
 
@@ -719,9 +685,9 @@ public class Client {
 
   * 如果选中右侧在线列表某个用户，然后选择右下侧私聊按钮默，认发送私聊消息。
 
-  ![image-20200223214143465](BIO、NIO、AIO.assets\image-20200223214143465.png)
+  ![image-20200223214143465](image/image-20200223214143465.png)
 
-  ![image-20200223214155975](BIO、NIO、AIO.assets\image-20200223214155975.png)
+  ![image-20200223214155975](image/image-20200223214155975.png)
 
 
 
@@ -1448,7 +1414,7 @@ public class ClientReader extends Thread {
 ##### 实现步骤
 
 * 客户端启动后，在聊天界面需要通过发送按钮推送群聊消息，@消息，以及私聊消息。
-* ![image-20200223232406727](BIO、NIO、AIO.assets\image-20200223232406727.png)
+* ![image-20200223232406727](image/image-20200223232406727.png)
 * 如果直接点击发送，默认发送群聊消息
 * 如果选中右侧在线列表某个用户，默认发送@消息
 * 如果选中右侧在线列表某个用户，然后选择右下侧私聊按钮默，认发送私聊消息。
@@ -1779,7 +1745,7 @@ Java NIO的通道类似流，但又有些不同：既可以从通道中读取数
 
 Selector是 一个Java NIO组件，可以能够检查一个或多个 NIO 通道，并确定哪些通道已经准备好进行读取或写入。这样，一个单独的线程可以管理多个channel，从而管理多个网络连接，提高效率
 
-![image-20200619153658139](BIO、NIO、AIO.assets\image-20200619153658139.png)
+![image-20200619153658139](image/image-20200619153658139.png)
 
 * 每个 channel 都会对应一个 Buffer
 * 一个线程对应Selector ， 一个Selector对应多个 channel(连接)
@@ -1795,7 +1761,7 @@ Selector是 一个Java NIO组件，可以能够检查一个或多个 NIO 通道�
 
 一个用于特定基本数据类 型的容器。由 java.nio 包定义的，所有缓冲区 都是 Buffer 抽象类的子类.。Java NIO 中的 Buffer 主要用于与 NIO 通道进行 交互，数据是从通道读入缓冲区，从缓冲区写入通道中的
 
-![image-20200619163952309](BIO、NIO、AIO.assets\image-20200619163952309.png)
+![image-20200619163952309](image/image-20200619163952309.png)
 
 ### **Buffer 类及其子类**
 
@@ -1825,7 +1791,7 @@ Buffer 中的重要概念：
 * **标记 (mark)与重置 (reset)**：标记是一个索引，通过 Buffer 中的 mark() 方法 指定 Buffer 中一个特定的 position，之后可以通过调用 reset() 方法恢复到这 个 position.
    **标记、位置、限制、容量遵守以下不变式： 0 <= mark <= position <= limit <= capacity**
 * **图示:**
-* ![image-20200619172434538](BIO、NIO、AIO.assets\image-20200619172434538.png)
+* ![image-20200619172434538](image/image-20200619172434538.png)
 
 ### Buffer常见方法
 
@@ -2233,7 +2199,7 @@ public void test02() throws Exception {
 
 选择器（Selector） 是 SelectableChannle 对象的多路复用器，Selector 可以同时监控多个 SelectableChannel 的 IO 状况，也就是说，利用 Selector可使一个单独的线程管理多个 Channel。Selector 是非阻塞 IO 的核心
 
-![image-20200619230246145](BIO、NIO、AIO.assets\image-20200619230246145.png)
+![image-20200619230246145](image/image-20200619230246145.png)
 
 * Java 的 NIO，用非阻塞的 IO 方式。可以用一个线程，处理多个的客户端连接，就会使用到 Selector(选择器)
 * Selector 能够检测多个注册的通道上是否有事件发生(注意:多个 Channel 以事件的方式可以注册到同一个
@@ -2284,7 +2250,7 @@ int interestSet = SelectionKey.OP_READ|SelectionKey.OP_WRITE
 
 Selector可以实现： 一个 I/O 线程可以并发处理 N 个客户端连接和读写操作，这从根本上解决了传统同步阻塞 I/O 一连接一线程模型，架构的性能、弹性伸缩能力和可靠性都得到了极大的提升。
 
-![image-20200619153658139](BIO、NIO、AIO.assets\image-20200619153658139.png)
+![image-20200619153658139](image/image-20200619153658139.png)
 
 ### 服务端流程
 
