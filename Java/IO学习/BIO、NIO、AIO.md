@@ -313,10 +313,12 @@ class ServerReadThread extends Thread{
 
 ### 小结
 
-* 1.每个Socket接收到，都会创建一个线程，线程的竞争、切换上下文影响性能；
-* 2.每个线程都会占用栈空间和CPU资源；
-* 3.并不是每个socket都进行IO操作，无意义的线程处理；  
-* 4.客户端的并发访问增加时。服务端将呈现1:1的线程开销，访问量越大，系统将发生线程栈溢出，线程创建失败，最终导致进程宕机或者僵死，从而不能对外提供服务。
+* 每个Socket接收到，都会创建一个线程，线程的竞争、切换上下文影响性能；
+* 每个线程都会占用栈空间和CPU资源；
+* 并不是每个socket都进行IO操作，无意义的线程处理；  
+* 客户端的并发访问增加时。服务端将呈现1:1的线程开销，访问量越大，系统将发生线程栈溢出，线程创建失败，最终导致进程宕机或者僵死，从而不能对外提供服务。
+
+
 
 ## 3.6 伪异步I/O编程
 
@@ -559,26 +561,44 @@ public class ServerReaderThread extends Thread {
 }
 ```
 
+**优化版本**
+
+```java
+@RestController
+public class UploadController {
+
+    @PostMapping("/upload")
+    public String uploadAnyFile(MultipartFile file) {
+        String name = file.getOriginalFilename();
+        try (
+                BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(Files.newOutputStream(Paths.get("JavaBase_File_IO_Study/src/main/java/com/example/javabase_file_io_study/bio/file_upload_example/" + name)));
+        ) {
+            byte[] bytes = file.getBytes();
+            bufferedOutputStream.write(bytes);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return null;
+    }
+
+}
+```
+
 ### 小结
 
 客户端怎么发，服务端就怎么接收
+
+
 
 ## 3.9 Java BIO模式下的端口转发思想
 
 需求：需要实现一个客户端的消息可以发送给所有的客户端去接收。（群聊实现）
 
-![image-20200619123304241](image/image-20200619123304241.png)
+![image-20200619123304241](./image/image-20200619123304241.png)
 
 ### 客户端开发
 
 ```java
-package com.itheima.file;
-
-import java.io.DataOutputStream;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.net.Socket;
-
 /**
     目标：实现客户端上传任意类型的文件数据给服务端保存起来。
 
@@ -667,7 +687,7 @@ public class Client {
 
 **项目代码结构演示。**
 
-![image-20200223212913139](image/image-20200223212913139.png)
+![image-20200223212913139](./image/image-20200223212913139.png)
 
 **项目启动步骤：**
 
@@ -675,7 +695,7 @@ public class Client {
 
 * 2.其次，点击客户端类ClientChat类，在弹出的方框中输入服务端的ip和当前客户端的昵称
 
-  ![image-20200223214123052](image/image-20200223214123052.png)
+  ![image-20200223214123052](./image/image-20200223214123052.png)
 
 * 3.登陆进入后的聊天界面如下，即可进行相关操作。
 
@@ -685,9 +705,9 @@ public class Client {
 
   * 如果选中右侧在线列表某个用户，然后选择右下侧私聊按钮默，认发送私聊消息。
 
-  ![image-20200223214143465](image/image-20200223214143465.png)
+  ![image-20200223214143465](./image/image-20200223214143465.png)
 
-  ![image-20200223214155975](image/image-20200223214155975.png)
+  ![image-20200223214155975](./image/image-20200223214155975.png)
 
 
 
@@ -1414,7 +1434,7 @@ public class ClientReader extends Thread {
 ##### 实现步骤
 
 * 客户端启动后，在聊天界面需要通过发送按钮推送群聊消息，@消息，以及私聊消息。
-* ![image-20200223232406727](image/image-20200223232406727.png)
+* ![image-20200223232406727](./image/image-20200223232406727.png)
 * 如果直接点击发送，默认发送群聊消息
 * 如果选中右侧在线列表某个用户，默认发送@消息
 * 如果选中右侧在线列表某个用户，然后选择右下侧私聊按钮默，认发送私聊消息。
