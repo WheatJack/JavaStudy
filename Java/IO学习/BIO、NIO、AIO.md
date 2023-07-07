@@ -1738,7 +1738,7 @@ class ClientReader extends Thread {
 
 ## 4.2 NIO 和 BIO 的比较
 
-* BIO 以流的方式处理数据,而 NIO 以块的方式处理数据,块 I/O 的效率比流 I/O 高很多
+* BIO 以流的方式处理数据,而 **NIO 以块的方式处理数据**,块 I/O 的效率比流 I/O 高很多
 * BIO 是阻塞的，NIO 则是非阻塞的
 *  BIO 基于字节流和字符流进行操作，而 NIO 基于 Channel(通道)和 Buffer(缓冲区)进行操作，数据总是从通道
   读取到缓冲区中，或者从缓冲区写入到通道中。Selector(选择器)用于监听多个通道的事件（比如：连接请求，数据到达等），因此使用单个线程就可以监听多个客户端通道
@@ -1765,15 +1765,15 @@ Java NIO的通道类似流，但又有些不同：既可以从通道中读取数
 
 Selector是 一个Java NIO组件，可以能够检查一个或多个 NIO 通道，并确定哪些通道已经准备好进行读取或写入。这样，一个单独的线程可以管理多个channel，从而管理多个网络连接，提高效率
 
-![image-20200619153658139](image/image-20200619153658139.png)
+![image-20200619153658139](./image/image-20200619153658139.png)
 
 * 每个 channel 都会对应一个 Buffer
 * 一个线程对应Selector ， 一个Selector对应多个 channel(连接)
 * 程序切换到哪个 channel 是由事件决定的
 *  Selector 会根据不同的事件，在各个通道上切换
-* Buffer 就是一个内存块 ， 底层是一个数组
+* Buffer 就是一个**内存块** ， 底层是一个**数组**
 * 数据的读取写入是通过 Buffer完成的 , BIO 中要么是输入流，或者是输出流, 不能双向，但是 NIO 的 Buffer 是可以读也可以写。
-* Java NIO系统的核心在于：通道(Channel)和缓冲区 (Buffer)。通道表示打开到 IO 设备(例如：文件、 套接字)的连接。若需要使用 NIO 系统，需要获取 用于连接 IO 设备的通道以及用于容纳数据的缓冲 区。然后操作缓冲区，对数据进行处理。简而言之，Channel 负责传输， Buffer 负责存取数据
+* Java NIO系统的核心在于：通道(Channel)和缓冲区 (Buffer)。通道表示打开到 IO 设备(例如：文件、 套接字)的连接。若需要使用 NIO 系统，需要获取 用于连接 IO 设备的通道以及用于容纳数据的缓冲 区。然后操作缓冲区，对数据进行处理。简而言之，**Channel 负责传输， Buffer 负责存取数据**
 
 ## 4.4 NIO核心一：缓冲区(Buffer)
 
@@ -1781,7 +1781,7 @@ Selector是 一个Java NIO组件，可以能够检查一个或多个 NIO 通道�
 
 一个用于特定基本数据类 型的容器。由 java.nio 包定义的，所有缓冲区 都是 Buffer 抽象类的子类.。Java NIO 中的 Buffer 主要用于与 NIO 通道进行 交互，数据是从通道读入缓冲区，从缓冲区写入通道中的
 
-![image-20200619163952309](image/image-20200619163952309.png)
+![image-20200619163952309](./image/image-20200619163952309.png)
 
 ### **Buffer 类及其子类**
 
@@ -1811,7 +1811,7 @@ Buffer 中的重要概念：
 * **标记 (mark)与重置 (reset)**：标记是一个索引，通过 Buffer 中的 mark() 方法 指定 Buffer 中一个特定的 position，之后可以通过调用 reset() 方法恢复到这 个 position.
    **标记、位置、限制、容量遵守以下不变式： 0 <= mark <= position <= limit <= capacity**
 * **图示:**
-* ![image-20200619172434538](image/image-20200619172434538.png)
+* ![image-20200619172434538](./image/image-20200619172434538.png)
 
 ### Buffer常见方法
 
@@ -1986,9 +1986,9 @@ public class TestBuffer {
 
 1、 NIO 的通道类似于流，但有些区别如下：
 
-* 通道可以同时进行读写，而流只能读或者只能写
+* **通道可以同时进行读写**，而流只能读或者只能写
 
-*  通道可以实现异步读写数据
+*  **通道可以实现异步读写**数据
 
 *  通道可以从缓冲读数据，也可以写数据到缓冲:
 
@@ -2003,10 +2003,10 @@ public interface Channel extends Closeable{}
 
 ### 常用的Channel实现类
 
-* FileChannel：用于读取、写入、映射和操作文件的通道。
-* DatagramChannel：通过 UDP 读写网络中的数据通道。
-* SocketChannel：通过 TCP 读写网络中的数据。
-* ServerSocketChannel：可以监听新进来的 TCP 连接，对每一个新进来的连接都会创建一个 SocketChannel。 【ServerSocketChanne 类似 ServerSocket , SocketChannel 类似 Socket】
+* **FileChannel**：用于读取、写入、映射和操作文件的通道。
+* **DatagramChannel**：通过 UDP 读写网络中的数据通道。
+* **SocketChannel**：通过 TCP 读写网络中的数据。
+* **ServerSocketChannel**：可以监听新进来的 TCP 连接，对每一个新进来的连接都会创建一个 SocketChannel。 【ServerSocketChanne 类似 ServerSocket , SocketChannel 类似 Socket】
 
 ### FileChannel 类
 
@@ -2039,17 +2039,6 @@ void force(boolean metaData) 强制将所有对此通道的文件更新写入到
 需求：使用前面学习后的 ByteBuffer(缓冲) 和 FileChannel(通道)， 将 "hello,黑马Java程序员！" 写入到 data.txt 中.
 
 ```java
-package com.itheima;
-
-
-import org.junit.Test;
-
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-
 public class ChannelTest {
     @Test
     public void write(){
@@ -2125,7 +2114,7 @@ public void copy() throws Exception {
         if(flag == -1){
             break;
         }
-        // 已经读取了数据 ，把缓冲区的模式切换成可读模式
+        // 已经读取了数据 ，把缓冲区的模式切换成 设置位置为0
         buffer.flip();
         // 把数据写出到
         osChannel.write(buffer);
