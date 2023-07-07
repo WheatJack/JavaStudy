@@ -2133,34 +2133,37 @@ public void copy() throws Exception {
 
 ```java
 //分散和聚集
-@Test
-public void test() throws IOException{
-		RandomAccessFile raf1 = new RandomAccessFile("1.txt", "rw");
-	//1. 获取通道
-	FileChannel channel1 = raf1.getChannel();
-	
-	//2. 分配指定大小的缓冲区
-	ByteBuffer buf1 = ByteBuffer.allocate(100);
-	ByteBuffer buf2 = ByteBuffer.allocate(1024);
-	
-	//3. 分散读取
-	ByteBuffer[] bufs = {buf1, buf2};
-	channel1.read(bufs);
-	
-	for (ByteBuffer byteBuffer : bufs) {
-		byteBuffer.flip();
-	}
-	
-	System.out.println(new String(bufs[0].array(), 0, bufs[0].limit()));
-	System.out.println("-----------------");
-	System.out.println(new String(bufs[1].array(), 0, bufs[1].limit()));
-	
-	//4. 聚集写入
-	RandomAccessFile raf2 = new RandomAccessFile("2.txt", "rw");
-	FileChannel channel2 = raf2.getChannel();
-	
-	channel2.write(bufs);
-}
+ public static void main(String[] args) {
+        // 分散读取  聚集写入
+        try (
+                FileInputStream fileInputStream = new FileInputStream("JavaBase_File_IO_Study/src/main/java/com/example/javabase_file_io_study/nio/channel/test.txt");
+                FileOutputStream fileOutputStream = new FileOutputStream("JavaBase_File_IO_Study/src/main/java/com/example/javabase_file_io_study/nio/channel/test-001.txt")) {
+            FileChannel inputStreamChannel = fileInputStream.getChannel();
+            FileChannel outputStreamChannel = fileOutputStream.getChannel();
+            // 定义缓冲区
+            ByteBuffer byteBuffer = ByteBuffer.allocate(3);
+            ByteBuffer byteBuffer2 = ByteBuffer.allocate(3);
+            ByteBuffer byteBuffer3 = ByteBuffer.allocate(2024);
+            ByteBuffer[] byteBuffers = {byteBuffer,byteBuffer2, byteBuffer3};
+            // 分散读取
+            inputStreamChannel.read(byteBuffers);
+
+            for (ByteBuffer buffer : byteBuffers) {
+                buffer.flip();
+                byte[] array = buffer.array();
+                String string = new String(array, 0, buffer.remaining());
+                System.out.println(buffer + ":" + string);
+            }
+            // 聚集写入
+            outputStreamChannel.write(byteBuffers);
+
+            inputStreamChannel.close();
+            outputStreamChannel.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
 ```
 ### 案例5-transferFrom()
 
