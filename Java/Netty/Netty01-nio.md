@@ -1143,7 +1143,7 @@ while (true) {
 
 #### 多路复用
 
-单线程可以配合 Selector 完成对多个 Channel 可读写事件的监控，这称之为多路复用
+单线程可以配合 Selector 完成对多个 Channel 可读写事件的监控，这称之为**多路复用**
 
 * 多路复用仅针对网络 IO、普通文件 IO 没法利用多路复用
 * 如果不用 Selector 的非阻塞模式，线程大部分时间都在做无用功，而 Selector 能够保证
@@ -1404,7 +1404,7 @@ sun.nio.ch.ServerSocketChannelImpl[/0:0:0:0:0:0:0:0:8080]
 
 #### 💡 为何要 iter.remove()
 
-> 因为 select 在事件发生后，就会将相关的 key 放入 selectedKeys 集合，但不会在处理完后从 selectedKeys 集合中移除，需要我们自己编码删除。例如
+> 因为 select 在事件发生后，**就会将相关的 key 放入 selectedKeys 集合，但不会在处理完后从 selectedKeys 集合中移除**，***需要我们自己编码删除***。例如
 >
 > * 第一次触发了 ssckey 上的 accept 事件，没有移除 ssckey 
 > * 第二次触发了 sckey 上的 read 事件，但这时 selectedKeys 中还有上次的 ssckey ，在处理时因为没有真正的 serverSocket 连上了，就会导致空指针异常
@@ -1441,6 +1441,58 @@ public class Server {
         }
     }
 }
+
+
+
+/**
+* NIO 的写法
+*/
+public static void main(String[] args) throws Exception {
+        // 1 ServerSocketChannel
+        ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+        // 异步
+        serverSocketChannel.configureBlocking(false);
+        // 获取选择器
+        Selector selector = Selector.open();
+        // 接收事件
+        SelectionKey selectionKey = serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT, null);
+        // 绑定端口
+        serverSocketChannel.bind(new InetSocketAddress(8081));
+        while (true) {
+            selector.select();
+            Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
+            if (iterator.hasNext()) {
+                SelectionKey next = iterator.next();
+
+                if (next.isAcceptable()) {
+                    SocketChannel accept = serverSocketChannel.accept();
+                    accept.configureBlocking(false);
+                    // 使用专属的byteBuffer 来处理文件
+                    accept.register(selector, SelectionKey.OP_READ, null);
+                    log.debug("连接已建立: {}", accept);
+                } else if (next.isReadable()) {
+                    try {
+                        ByteBuffer allocate = ByteBuffer.allocate(4);
+                        SocketChannel channel = (SocketChannel) next.channel();
+                        int read = channel.read(allocate);
+                        if (read == -1) {
+                            // 读完了 取消操作
+                            next.cancel();
+                        }
+                        allocate.flip();
+                        System.out.println(Charset.defaultCharset().decode(allocate));
+                        log.debug("读取数据: {}", channel);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        // 客户端异常关机
+                        next.cancel();
+                    }
+
+                }
+                iterator.remove();
+            }
+        }
+    }
 ```
 
 客户端
@@ -1456,6 +1508,19 @@ public class Client {
         max.close();
     }
 }
+
+
+
+/**
+* 对应上面的的NIO的测试案例
+*/
+
+public static void main(String[] args) throws Exception {
+        SocketChannel socketChannel = SocketChannel.open();
+        socketChannel.connect(new InetSocketAddress("localhost", 8081));
+        socketChannel.write(Charset.defaultCharset().encode("中国"));
+        System.in.read();
+    }
 ```
 
 输出
@@ -1466,11 +1531,15 @@ owor
 ld�
 �好
 
+11:37:32.242 [main] DEBUG com.example.javabase_file_io_study.netty.nio.messageGap.Server - 连接已建立: java.nio.channels.SocketChannel[connected local=/127.0.0.1:8081 remote=/127.0.0.1:59001]
+中�
+11:37:32.265 [main] DEBUG com.example.javabase_file_io_study.netty.nio.messageGap.Server - 读取数据: java.nio.channels.SocketChannel[connected local=/127.0.0.1:8081 remote=/127.0.0.1:59001]
+��
 ```
 
 为什么？
 
-
+> 因为设置的buffer的空间太小 导致 两个中文汉字 六个字节。要分两次读取 所以第一次读取4个字节的时候 会导致 前三个字节会识别出来 后一个字节识别不出来，第二次读取到两个字节 也是识别不出来 所有导致乱码的存在
 
 #### 处理消息的边界
 
@@ -1742,7 +1811,246 @@ public class WriteClient {
 * 单线程配一个选择器，专门处理 accept 事件
 * 创建 cpu 核心数的线程，每个线程配一个选择器，轮流处理 read 事件
 
+![image-20230803105939568](./img/image-20230803105939568.png)
 
+**初版**
+
+```java
+public class MultiplyServer {
+    public static void main(String[] args) throws Exception {
+
+        Thread.currentThread().setName("boss");
+        ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+        serverSocketChannel.configureBlocking(false);
+        Selector boss = Selector.open();
+        serverSocketChannel.bind(new InetSocketAddress(8081));
+        serverSocketChannel.register(boss, SelectionKey.OP_ACCEPT);
+        // 初始化Worker
+        Worker worker1 = new Worker("worker1");
+
+        while (true) {
+            boss.select();
+            Iterator<SelectionKey> iterator = boss.selectedKeys().iterator();
+            while (iterator.hasNext()) {
+                SelectionKey selectionKey = iterator.next();
+                iterator.remove();
+                if (selectionKey.isAcceptable()) {
+                    log.debug("开始接收连接........");
+                    SocketChannel socketChannel = serverSocketChannel.accept();
+                    socketChannel.configureBlocking(false);
+                    log.debug("before........");
+                    // 初始化 worker1
+                    worker1.workRegister(socketChannel);
+                    socketChannel.register(worker1.selector,SelectionKey.OP_READ,null);
+                    // 绑定selector  绑定到worker上的selector 使其工作
+                    log.debug("after........");
+                }
+            }
+        }
+    }
+
+
+    static class Worker implements Runnable {
+        private String name;
+        private Selector selector;
+        private volatile boolean flag = false;
+        private Thread thread;
+
+        public Worker(String name) {
+            this.name = name;
+        }
+
+        public void workRegister(SocketChannel socketChannel) throws Exception {
+            if (!flag) {
+                selector = Selector.open();
+                thread = new Thread(this, name);
+                thread.start();
+                // 执行的时候  才会执行run 方法
+                flag = true;
+                log.debug("第一次初始化完成");
+            }
+            // boss线程
+            log.debug("初始化完成");
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                try {
+                    log.debug("开始进行run方法");
+                    selector.select();
+                    Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
+                    while (iterator.hasNext()) {
+                        SelectionKey next = iterator.next();
+                        iterator.remove();
+                        if (next.isReadable()) {
+                            log.debug("开始读事件");
+                            SocketChannel channel = (SocketChannel) next.channel();
+                            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(128);
+                            int write = channel.read(byteBuffer);
+                            byteBuffer.flip();
+                            ByteBufferUtil.debugAll(byteBuffer);
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+        }
+    }
+}
+```
+
+**输出的结果：**
+
+```
+14:06:10.085 [boss] DEBUG com.example.javabase_file_io_study.netty.nio.selector.MultiplyServer - 开始接收连接........
+14:06:10.095 [boss] DEBUG com.example.javabase_file_io_study.netty.nio.selector.MultiplyServer - before........
+14:06:10.096 [boss] DEBUG com.example.javabase_file_io_study.netty.nio.selector.MultiplyServer - 第一次初始化完成
+14:06:10.096 [boss] DEBUG com.example.javabase_file_io_study.netty.nio.selector.MultiplyServer - 初始化完成
+14:06:10.096 [worker1] DEBUG com.example.javabase_file_io_study.netty.nio.selector.MultiplyServer - 开始进行run方法
+14:06:10.096 [boss] DEBUG com.example.javabase_file_io_study.netty.nio.selector.MultiplyServer - after........
+14:06:10.096 [worker1] DEBUG com.example.javabase_file_io_study.netty.nio.selector.MultiplyServer - 开始读事件
+14:06:10.118 [worker1] DEBUG io.netty.util.internal.logging.InternalLoggerFactory - Using SLF4J as the default logging framework
++--------+-------------------- all ------------------------+----------------+
+position: [0], limit: [5]
+         +-------------------------------------------------+
+         |  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f |
++--------+-------------------------------------------------+----------------+
+|00000000| 48 65 6c 6c 6f 00 00 00 00 00 00 00 00 00 00 00 |Hello...........|
+|00000010| 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 |................|
+```
+
+**弊端：**
+
+![image-20230804142144132](./img/image-20230804142144132.png)
+
+> 如果先执行了select方法，那么就会阻塞中，就会影响register方法。导致数据无法使用读事件
+>
+> 所以得先执行register方法 然后再去select 那么就会取得的消息
+>
+> **如果新开一个客户端 当前状态 select得状态 还是卡住的。那么重新调用register的方法 那么就没办法注册上**
+
+
+
+**修改版本：**
+
+> 思路，如果register方法和select方法放在同一个线程里 那么是不是更好操作
+>
+> **判断线程是谁？** **看谁调用的这个方法。谁调用的就是哪个的线程**
+
+```java
+public class MultiplyServer {
+    public static void main(String[] args) throws Exception {
+
+        Thread.currentThread().setName("boss");
+        ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+        serverSocketChannel.configureBlocking(false);
+        Selector boss = Selector.open();
+        serverSocketChannel.bind(new InetSocketAddress(8081));
+        serverSocketChannel.register(boss, SelectionKey.OP_ACCEPT);
+        // 初始化Worker
+        Worker[] workers = new Worker[2];
+        for (int i = 0; i < workers.length; i++) {
+            workers[i] = new Worker("worker" + i);
+        }
+        // 计数器
+        AtomicInteger atomicInteger = new AtomicInteger();
+        while (true) {
+            boss.select();
+            Iterator<SelectionKey> iterator = boss.selectedKeys().iterator();
+            while (iterator.hasNext()) {
+                SelectionKey selectionKey = iterator.next();
+                iterator.remove();
+                if (selectionKey.isAcceptable()) {
+                    log.debug("开始接收连接........");
+                    SocketChannel socketChannel = serverSocketChannel.accept();
+                    socketChannel.configureBlocking(false);
+                    log.debug("before........");
+                    // 初始化 worker1
+                    workers[atomicInteger.getAndIncrement() % workers.length].workRegister(socketChannel);
+                    // 绑定selector  绑定到worker上的selector 使其工作
+                    log.debug("after........");
+                }
+            }
+        }
+    }
+
+
+    static class Worker implements Runnable {
+        private String name;
+        private Selector selector;
+        private volatile boolean flag = false;
+        private Thread thread;
+
+        private ConcurrentLinkedQueue<Runnable> queue = new ConcurrentLinkedQueue();
+
+        public Worker(String name) {
+            this.name = name;
+        }
+
+        public void workRegister(SocketChannel socketChannel) throws Exception {
+            if (!flag) {
+                selector = Selector.open();
+                thread = new Thread(this, name);
+                thread.start();
+                // 执行的时候  才会执行run 方法
+                flag = true;
+                log.debug("第一次初始化完成");
+            }
+            queue.add(() -> {
+                try {
+                    socketChannel.register(selector, SelectionKey.OP_READ, null);
+                } catch (ClosedChannelException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            // 唤醒
+            selector.wakeup();
+            // boss线程
+            log.debug("初始化完成");
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                try {
+                    log.debug("开始进行run方法");
+                    // 阻塞的时候 需要唤醒selector  或者把事件绑定放到select前面操作
+                    selector.select();
+                    Runnable poll = queue.poll();
+                    if (poll != null) {
+                        poll.run();
+                    }
+                    Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
+                    while (iterator.hasNext()) {
+                        SelectionKey next = iterator.next();
+                        iterator.remove();
+                        if (next.isReadable()) {
+                            log.debug("开始读事件");
+                            SocketChannel channel = (SocketChannel) next.channel();
+                            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(128);
+                            int write = channel.read(byteBuffer);
+                            byteBuffer.flip();
+                            ByteBufferUtil.debugAll(byteBuffer);
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+        }
+    }
+}
+```
+
+> **‼️‼️注意select的顺序 还可以使用weakup来唤醒selector**
+
+
+
+**老师完整版本：**
 
 ```java
 public class ChannelDemo7 {
@@ -1883,7 +2191,7 @@ public class ChannelDemo7 {
 
 #### 💡 如何拿到 cpu 个数
 
-> * Runtime.getRuntime().availableProcessors() 如果工作在 docker 容器下，因为容器不是物理隔离的，会拿到物理 cpu 个数，而不是容器申请时的个数
+> * Runtime.getRuntime().availableProcessors() 如果工作在 docker 容器下，因为容器不是物理隔离的，会拿到物理 cpu 个数，而不是容器申请时的个数 （参考 **阿姆达尔定律** 来定义和计算这个CPU的核数）
 > * 这个问题直到 jdk 10 才修复，使用 jvm 参数 UseContainerSupport 配置， 默认开启
 
 
