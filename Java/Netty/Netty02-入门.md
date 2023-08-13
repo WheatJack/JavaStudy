@@ -189,9 +189,9 @@ EventLoop 本质是一个**单线程执行器（同时维护了一个 Selector�
 
 它的继承关系比较复杂
 
-* 一条线是继承自 j.u.c.ScheduledExecutorService 因此包含了线程池中所有的方法
-* 另一条线是继承自 netty 自己的 OrderedEventExecutor，
-  * 提供了 boolean inEventLoop(Thread thread) 方法判断一个线程是否属于此 EventLoop
+* 一条线是继承自 **j.u.c.ScheduledExecutorService** 因此包含了线程池中所有的方法
+* 另一条线是继承自 netty 自己的 **OrderedEventExecutor**，
+  * **提供了 boolean inEventLoop(Thread thread) 方法判断一个线程是否属于此 EventLoop**
   * 提供了 parent 方法来看看自己属于哪个 EventLoopGroup
 
 
@@ -200,7 +200,7 @@ EventLoop 本质是一个**单线程执行器（同时维护了一个 Selector�
 
 EventLoopGroup 是一组 EventLoop，Channel 一般会调用 EventLoopGroup 的 register 方法来绑定其中一个 EventLoop，后续这个 Channel 上的 io 事件都由此 EventLoop 来处理（保证了 io 事件处理时的线程安全）
 
-* 继承自 netty 自己的 EventExecutorGroup
+* 继承自 netty 自己的 **EventExecutorGroup**
   * 实现了 Iterable 接口提供遍历 EventLoop 的能力
   * 另有 next 方法获取集合中下一个 EventLoop
 
@@ -246,6 +246,10 @@ io.netty.channel.DefaultEventLoop@35f983a6
 
 优雅关闭 `shutdownGracefully` 方法。该方法会首先切换 `EventLoopGroup` 到关闭状态从而拒绝新的任务的加入，然后在任务队列的任务都处理完成后，停止线程的运行。从而确保整体应用是在正常有序的状态下退出的
 
+```java
+eventExecutors.shutdownGracefully();
+```
+
 
 
 #### 演示 NioEventLoop 处理 io 事件
@@ -253,25 +257,26 @@ io.netty.channel.DefaultEventLoop@35f983a6
 服务器端两个 nio worker 工人
 
 ```java
-new ServerBootstrap()
-    .group(new NioEventLoopGroup(1), new NioEventLoopGroup(2))
-    .channel(NioServerSocketChannel.class)
-    .childHandler(new ChannelInitializer<NioSocketChannel>() {
-        @Override
-        protected void initChannel(NioSocketChannel ch) {
-            ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
-                @Override
-                public void channelRead(ChannelHandlerContext ctx, Object msg) {
-                    ByteBuf byteBuf = msg instanceof ByteBuf ? ((ByteBuf) msg) : null;
-                    if (byteBuf != null) {
-                        byte[] buf = new byte[16];
-                        ByteBuf len = byteBuf.readBytes(buf, 0, byteBuf.readableBytes());
-                        log.debug(new String(buf));
+
+        new ServerBootstrap()
+                // 优化  netty 建议我们 不同的group做不同的事情 类似boss和worker
+                // 细分1: 第一个参数只处理accept事件  第二个参数 做读写操作事件 启动两个线程
+                .group(new NioEventLoopGroup(), new NioEventLoopGroup(2))
+                .channel(NioServerSocketChannel.class)
+                .childHandler(new ChannelInitializer<NioSocketChannel>() {
+                    @Override
+                    protected void initChannel(NioSocketChannel nioSocketChannel) throws Exception {
+                        nioSocketChannel.pipeline().addLast("handler1", new ChannelInboundHandlerAdapter() {
+                            // msg 就是ByteBuf 字节数组
+                            @Override
+                            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                                ByteBuf byteBuf = (ByteBuf) msg;
+                                log.debug("写数据,{}", byteBuf.toString(Charset.defaultCharset()));
+                            }
+                        });
                     }
-                }
-            });
-        }
-    }).bind(8080).sync();
+                })
+                .bind(8080);
 ```
 
 客户端，启动三次，分别修改发送字符串为 zhangsan（第一次），lisi（第二次），wangwu（第三次）
@@ -307,7 +312,7 @@ public static void main(String[] args) throws InterruptedException {
 22:06:11 [DEBUG] [nioEventLoopGroup-3-1] c.i.o.EventLoopTest - wangwu         
 ```
 
-可以看到两个工人轮流处理 channel，但工人与 channel 之间进行了绑定
+**可以看到两个工人轮流处理 channel，但工人与 channel 之间进行了绑定**
 
 ![](img/0042.png)
 
@@ -316,28 +321,37 @@ public static void main(String[] args) throws InterruptedException {
 再增加两个非 nio 工人
 
 ```java
-DefaultEventLoopGroup normalWorkers = new DefaultEventLoopGroup(2);
-new ServerBootstrap()
-    .group(new NioEventLoopGroup(1), new NioEventLoopGroup(2))
-    .channel(NioServerSocketChannel.class)
-    .childHandler(new ChannelInitializer<NioSocketChannel>() {
-        @Override
-        protected void initChannel(NioSocketChannel ch)  {
-            ch.pipeline().addLast(new LoggingHandler(LogLevel.DEBUG));
-            ch.pipeline().addLast(normalWorkers,"myhandler",
-              new ChannelInboundHandlerAdapter() {
-                @Override
-                public void channelRead(ChannelHandlerContext ctx, Object msg) {
-                    ByteBuf byteBuf = msg instanceof ByteBuf ? ((ByteBuf) msg) : null;
-                    if (byteBuf != null) {
-                        byte[] buf = new byte[16];
-                        ByteBuf len = byteBuf.readBytes(buf, 0, byteBuf.readableBytes());
-                        log.debug(new String(buf));
+// 细分2  执行读写操作的时候 可能耗费事件 卡住worker的线程 所以我们可以使用其他的eventLoopGroup来处理handler
+        DefaultEventLoop defaultEventLoop = new DefaultEventLoop();
+        new ServerBootstrap()
+                // 优化  netty 建议我们 不同的group做不同的事情 类似boss和worker
+                // 细分1: 第一个参数只处理accept事件  第二个参数 做读写操作事件 启动两个线程
+                .group(new NioEventLoopGroup(), new NioEventLoopGroup(2))
+                .channel(NioServerSocketChannel.class)
+                .childHandler(new ChannelInitializer<NioSocketChannel>() {
+                    @Override
+                    protected void initChannel(NioSocketChannel nioSocketChannel) throws Exception {
+                        nioSocketChannel.pipeline().addLast(new LoggingHandler(LogLevel.DEBUG));
+                        nioSocketChannel.pipeline().addLast("handler1", new ChannelInboundHandlerAdapter() {
+                            // msg 就是ByteBuf 字节数组
+                            @Override
+                            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                                ByteBuf byteBuf = (ByteBuf) msg;
+                                log.debug("写数据,{}", byteBuf.toString(Charset.defaultCharset()));
+                                // 把消息传递给下一个handler处理
+                                ctx.fireChannelRead(msg);
+                            }
+                        }).addLast(defaultEventLoop, "default-handler", new ChannelInboundHandlerAdapter() {
+                            // msg 就是ByteBuf 字节数组
+                            @Override
+                            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                                ByteBuf byteBuf = (ByteBuf) msg;
+                                log.debug("写数据,{}", byteBuf.toString(Charset.defaultCharset()));
+                            }
+                        });
                     }
-                }
-            });
-        }
-    }).bind(8080).sync();
+                })
+                .bind(8080);
 ```
 
 客户端代码不变，启动三次，分别修改发送字符串为 zhangsan（第一次），lisi（第二次），wangwu（第三次）
@@ -410,6 +424,11 @@ new ServerBootstrap()
 
 
 #### 💡 handler 执行中如何换人？
+
+> ```java
+> // 把消息传递给下一个handler处理
+> ctx.fireChannelRead(msg);
+> ```
 
 关键代码 `io.netty.channel.AbstractChannelHandlerContext#invokeChannelRead()`
 
@@ -497,9 +516,9 @@ nioWorkers.scheduleAtFixedRate(() -> {
 channel 的主要作用
 
 * close() 可以用来关闭 channel
-* closeFuture() 用来处理 channel 的关闭
+* **closeFuture**() 用来处理 channel 的关闭
   * sync 方法作用是同步等待 channel 关闭
-  * 而 addListener 方法是异步等待 channel 关闭
+  * （使用其他线程）而 addListener 方法是异步等待 channel 关闭
 * pipeline() 方法添加处理器
 * write() 方法将数据写入
 * writeAndFlush() 方法将数据写入并刷出
@@ -508,7 +527,7 @@ channel 的主要作用
 
 #### ChannelFuture
 
-这时刚才的客户端代码
+刚才的客户端代码
 
 ```java
 new Bootstrap()
@@ -559,9 +578,12 @@ ChannelFuture channelFuture = new Bootstrap()
             ch.pipeline().addLast(new StringEncoder());
         }
     })
+   // 是异步非阻塞操作  main 线程调用 执行的是NIO的Event
+   // 连接的操作 需要一点时间
     .connect("127.0.0.1", 8080);
 
 System.out.println(channelFuture.channel()); // 1
+// 解决方法1: 同步阻塞操作 同步处理结果  等待操作
 channelFuture.sync(); // 2
 System.out.println(channelFuture.channel()); // 3
 ```
@@ -584,7 +606,9 @@ ChannelFuture channelFuture = new Bootstrap()
     })
     .connect("127.0.0.1", 8080);
 System.out.println(channelFuture.channel()); // 1
+// 解决方法2: 使用addListener（回调对象） 方法异步操作处理
 channelFuture.addListener((ChannelFutureListener) future -> {
+  // 在NIO线程建立连接之后 会回调operationComplete
     System.out.println(future.channel()); // 2
 });
 ```
@@ -597,53 +621,80 @@ channelFuture.addListener((ChannelFutureListener) future -> {
 #### CloseFuture
 
 ```java
-@Slf4j
 public class CloseFutureClient {
     public static void main(String[] args) throws InterruptedException {
-        NioEventLoopGroup group new NioEventLoopGroup();
+
+        NioEventLoopGroup eventExecutors = new NioEventLoopGroup();
+        // 1、启动器
+        // 带有Future、Promise都是和异步方法配套使用
         ChannelFuture channelFuture = new Bootstrap()
-                .group(group)
+                // 类似BossEventLoop、WorkerEventLoop（selector、thread）
+                .group(eventExecutors)
+                // 选择SocketChannel 实现
                 .channel(NioSocketChannel.class)
-                .handler(new ChannelInitializer<NioSocketChannel>() {
-                    @Override // 在连接建立后被调用
-                    protected void initChannel(NioSocketChannel ch) throws Exception {
-                        ch.pipeline().addLast(new LoggingHandler(LogLevel.DEBUG));
-                        ch.pipeline().addLast(new StringEncoder());
-                    }
-                })
+                // 4、添加处理器 能执行哪些操作
+                .handler(
+                        // 建立连接后被调用
+                        new ChannelInitializer<NioSocketChannel>() {
+                            @Override
+                            protected void initChannel(NioSocketChannel nioSocketChannel) throws Exception {
+                                nioSocketChannel.pipeline().addLast(new LoggingHandler(LogLevel.DEBUG));
+                                // string转成字节码
+                                nioSocketChannel.pipeline().addLast(new StringEncoder());
+                            }
+                        })
+                // 连接到服务器
+                // 是异步非阻塞操作  main 线程调用 执行的是NIO的Event
+                // 连接的操作 需要一点时间
                 .connect(new InetSocketAddress("localhost", 8080));
-        Channel channel = channelFuture.sync().channel();
-        log.debug("{}", channel);
-        new Thread(()->{
+        // 解决方法1: 同步阻塞操作 同步处理结果  等待操作
+
+        channelFuture.sync();
+        Channel channel = channelFuture.channel();
+        log.debug("channel,{}", channel);
+        new Thread(() -> {
             Scanner scanner = new Scanner(System.in);
             while (true) {
                 String line = scanner.nextLine();
                 if ("q".equals(line)) {
-                    channel.close(); // close 异步操作 1s 之后
-//                    log.debug("处理关闭之后的操作"); // 不能在这里善后
+                    // close 是异步操作的 所以打印下面的debug日志的时候  其实channel还不一定关闭了
+                    channel.close();
+                    // 不能在这里结束
+                    //  log.debug("我要close---方法内");
                     break;
                 }
                 channel.writeAndFlush(line);
             }
         }, "input").start();
-
-        // 获取 CloseFuture 对象， 1) 同步处理关闭， 2) 异步处理关闭
+        // 上面input线程开启 直接运行下面的debug方法
+        // log.debug("我要close---结尾");
+        // 想要在channel关闭后 优雅的处理后续事件 有两种方法
         ChannelFuture closeFuture = channel.closeFuture();
-        /*log.debug("waiting close...");
-        closeFuture.sync();
-        log.debug("处理关闭之后的操作");*/
-        closeFuture.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                log.debug("处理关闭之后的操作");
-                group.shutdownGracefully();
-            }
+        // closeFuture 去sync 阻塞住
+        closeMethod1(closeFuture, eventExecutors);
+        // 2、closeFuture 使用异步处理关闭
+        closeMethod2(closeFuture, eventExecutors);
+
+    }
+
+    private static void closeMethod2(ChannelFuture closeFuture, NioEventLoopGroup eventExecutors) {
+        closeFuture.addListener((ChannelFutureListener) channelFuture -> {
+            log.debug("我是close ---operationComplete");
+            // 优雅的关闭任务 先拒绝任务进来 该方法会首先切换 `EventLoopGroup` 到关闭状态从而拒绝新的任务的加入，然后在任务队列的任务都处理完成后，停止线程的运行
+            eventExecutors.shutdownGracefully();
+
         });
     }
+
+    private static void closeMethod1(ChannelFuture closeFuture, NioEventLoopGroup eventExecutors) throws InterruptedException {
+        // 1、使用CloseFuture 去sync 阻塞住 当关闭后 执行下面的操作
+        closeFuture.sync();
+        log.debug("我是close ---ChannelFuture");
+        eventExecutors.shutdownGracefully();
+    }
+
 }
 ```
-
-
 
 
 
@@ -651,9 +702,7 @@ public class CloseFutureClient {
 
 * 有些同学看到这里会有疑问：为什么不在一个线程中去执行建立连接、去执行关闭 channel，那样不是也可以吗？非要用这么复杂的异步方式：比如一个线程发起建立连接，另一个线程去真正建立连接
 
-* 还有同学会笼统地回答，因为 netty 异步方式用了多线程、多线程就效率高。其实这些认识都比较片面，多线程和异步所提升的效率并不是所认为的
-
-
+* 还有同学会笼统地回答，因为 netty 异步方式用了多线程、多线程就效率高（**提升了吞吐量**）。其实这些认识都比较片面，多线程和异步所提升的效率并不是所认为的
 
 
 
@@ -661,33 +710,9 @@ public class CloseFutureClient {
 
 ![](img/0044.png)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 经研究发现，看病可以细分为四个步骤，经拆分后每个步骤需要 5 分钟，如下
 
 ![](img/0048.png)
-
-
-
-
-
-
-
-
-
-
 
 因此可以做如下优化，只有一开始，医生 2、3、4 分别要等待 5、10、15 分钟才能执行工作，但只要后续病人源源不断地来，他们就能够满负荷工作，并且处理病人的能力提高到了 `4 * 8 * 12` 效率几乎是原来的四倍
 
@@ -696,7 +721,7 @@ public class CloseFutureClient {
 要点
 
 * 单线程没法异步提高效率，必须配合多线程、多核 cpu 才能发挥异步的优势
-* 异步并没有缩短响应时间，反而有所增加
+* **异步并没有缩短响应时间，反而有所增加（上下文的切换）**
 * 合理进行任务拆分，也是利用异步的关键
 
 
@@ -710,6 +735,8 @@ public class CloseFutureClient {
 * jdk Future 只能同步等待任务结束（或成功、或失败）才能得到结果
 * netty Future 可以同步等待任务结束得到结果，也可以异步方式得到结果，但都是要等任务结束
 * netty Promise 不仅有 netty Future 的功能，而且脱离了任务独立存在，只作为两个线程间传递结果的容器
+  * **可以设置任务结果成功或者失败**
+
 
 | 功能/名称    | jdk Future                     | netty Future                                                 | Promise      |
 | ------------ | ------------------------------ | ------------------------------------------------------------ | ------------ |
@@ -728,9 +755,7 @@ public class CloseFutureClient {
 
 
 
-#### 例1
-
-同步处理任务成功
+#### 例1-同步处理任务成功
 
 ```java
 DefaultEventLoop eventExecutors = new DefaultEventLoop();
@@ -762,9 +787,7 @@ log.debug("{}",promise.get());
 
 
 
-#### 例2
-
-异步处理任务成功
+#### 例2-异步处理任务成功
 
 ```java
 DefaultEventLoop eventExecutors = new DefaultEventLoop();
@@ -800,12 +823,10 @@ log.debug("start...");
 
 
 
-#### 例3
-
-同步处理任务失败 - sync & get
+#### 例3-同步处理任务失败 - sync & get
 
 ```java
-DefaultEventLoop eventExecutors = new DefaultEventLoop();
+				DefaultEventLoop eventExecutors = new DefaultEventLoop();
         DefaultPromise<Integer> promise = new DefaultPromise<>(eventExecutors);
 
         eventExecutors.execute(() -> {
@@ -844,9 +865,9 @@ Caused by: java.lang.RuntimeException: error...
 
 
 
-#### 例4
+#### 例4-同步处理任务失败 - await
 
-同步处理任务失败 - await
+
 
 ```java
 DefaultEventLoop eventExecutors = new DefaultEventLoop();
@@ -865,7 +886,8 @@ eventExecutors.execute(() -> {
 
 log.debug("start...");
 log.debug("{}", promise.getNow());
-promise.await(); // 与 sync 和 get 区别在于，不会抛异常
+ // 与 sync 和 get 区别在于，不会抛异常 需要通过isSuccess 方法来判断是否正常
+promise.await();
 log.debug("result {}", (promise.isSuccess() ? promise.getNow() : promise.cause()).toString());
 ```
 
@@ -880,9 +902,7 @@ log.debug("result {}", (promise.isSuccess() ? promise.getNow() : promise.cause()
 
 
 
-#### 例5
-
-异步处理任务失败
+#### 例5-异步处理任务失败
 
 ```java
 DefaultEventLoop eventExecutors = new DefaultEventLoop();
@@ -916,9 +936,9 @@ log.debug("start...");
 
 
 
-#### 例6
+#### 例6-await 死锁检查
 
-await 死锁检查
+> 下面两个await都同步阻塞。都在等到任务完成
 
 ```java
 DefaultEventLoop eventExecutors = new DefaultEventLoop();
@@ -927,6 +947,7 @@ DefaultPromise<Integer> promise = new DefaultPromise<>(eventExecutors);
 eventExecutors.submit(()->{
     System.out.println("1");
     try {
+      // 同步阻塞等待任务结束，和sync方法一样，只不过不会抛出异常信息
         promise.await();
         // 注意不能仅捕获 InterruptedException 异常
         // 否则 死锁检查抛出的 BlockingOperationException 会继续向上传播
@@ -939,6 +960,7 @@ eventExecutors.submit(()->{
 eventExecutors.submit(()->{
     System.out.println("3");
     try {
+      // 同步阻塞等待任务结束，和sync方法一样，只不过不会抛出异常信息
         promise.await();
     } catch (Exception e) {
         e.printStackTrace();
@@ -950,36 +972,36 @@ eventExecutors.submit(()->{
 输出
 
 ```
-1
-2
-3
-4
-io.netty.util.concurrent.BlockingOperationException: DefaultPromise@47499c2a(incomplete)
-	at io.netty.util.concurrent.DefaultPromise.checkDeadLock(DefaultPromise.java:384)
-	at io.netty.util.concurrent.DefaultPromise.await(DefaultPromise.java:212)
-	at com.itcast.oio.DefaultPromiseTest.lambda$main$0(DefaultPromiseTest.java:27)
-	at io.netty.util.concurrent.PromiseTask$RunnableAdapter.call(PromiseTask.java:38)
-	at io.netty.util.concurrent.PromiseTask.run(PromiseTask.java:73)
+[defaultEventLoop-3-1] DEBUG com.example.javabase_file_io_study.netty.netty.future.NettyFutureTest - 1
+[defaultEventLoop-3-1] DEBUG com.example.javabase_file_io_study.netty.netty.future.NettyFutureTest - 2
+[defaultEventLoop-3-1] DEBUG com.example.javabase_file_io_study.netty.netty.future.NettyFutureTest - 3
+[defaultEventLoop-3-1] DEBUG com.example.javabase_file_io_study.netty.netty.future.NettyFutureTest - 4
+io.netty.util.concurrent.BlockingOperationException: DefaultPromise@3a69a63f(incomplete)
+	at io.netty.util.concurrent.DefaultPromise.checkDeadLock(DefaultPromise.java:463)
+	at io.netty.util.concurrent.DefaultPromise.await(DefaultPromise.java:248)
+	at com.example.javabase_file_io_study.netty.netty.future.NettyFutureTest.lambda$test2$1(NettyFutureTest.java:59)
+	at io.netty.util.concurrent.PromiseTask.runTask(PromiseTask.java:98)
+	at io.netty.util.concurrent.PromiseTask.run(PromiseTask.java:106)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:174)
 	at io.netty.channel.DefaultEventLoop.run(DefaultEventLoop.java:54)
-	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:918)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997)
 	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
 	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
-	at java.lang.Thread.run(Thread.java:745)
-io.netty.util.concurrent.BlockingOperationException: DefaultPromise@47499c2a(incomplete)
-	at io.netty.util.concurrent.DefaultPromise.checkDeadLock(DefaultPromise.java:384)
-	at io.netty.util.concurrent.DefaultPromise.await(DefaultPromise.java:212)
-	at com.itcast.oio.DefaultPromiseTest.lambda$main$1(DefaultPromiseTest.java:36)
-	at io.netty.util.concurrent.PromiseTask$RunnableAdapter.call(PromiseTask.java:38)
-	at io.netty.util.concurrent.PromiseTask.run(PromiseTask.java:73)
+	at java.lang.Thread.run(Thread.java:748)
+io.netty.util.concurrent.BlockingOperationException: DefaultPromise@3a69a63f(incomplete)
+	at io.netty.util.concurrent.DefaultPromise.checkDeadLock(DefaultPromise.java:463)
+	at io.netty.util.concurrent.DefaultPromise.await(DefaultPromise.java:248)
+	at com.example.javabase_file_io_study.netty.netty.future.NettyFutureTest.lambda$test2$2(NettyFutureTest.java:71)
+	at io.netty.util.concurrent.PromiseTask.runTask(PromiseTask.java:98)
+	at io.netty.util.concurrent.PromiseTask.run(PromiseTask.java:106)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:174)
 	at io.netty.channel.DefaultEventLoop.run(DefaultEventLoop.java:54)
-	at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:918)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997)
 	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
 	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
-	at java.lang.Thread.run(Thread.java:745)
+	at java.lang.Thread.run(Thread.java:748)
 
 ```
-
-
 
 
 
