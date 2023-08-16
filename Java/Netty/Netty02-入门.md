@@ -1486,7 +1486,7 @@ public static boolean release(Object msg) {
 
 #### 9）slice
 
-【零拷贝】的体现之一，对原始 ByteBuf 进行切片成多个 ByteBuf，切片后的 ByteBuf 并没有发生内存复制，还是使用原始 ByteBuf 的内存，切片后的 ByteBuf 维护独立的 read，write 指针
+【零拷贝】的体现之一，对原始 ByteBuf 进行切片成多个 ByteBuf，**切片后的 ByteBuf 并没有发生内存复制**，还是使用原始 ByteBuf 的内存，**切片后的 ByteBuf 维护独立的 read，write 指针**
 
 ![](img/0011.png)
 
@@ -1509,7 +1509,7 @@ System.out.println(ByteBufUtil.prettyHexDump(origin));
 +--------+-------------------------------------------------+----------------+
 ```
 
-这时调用 slice 进行切片，无参 slice 是从原始 ByteBuf 的 read index 到 write index 之间的内容进行切片，切片后的 max capacity 被固定为这个区间的大小，因此不能追加 write
+这时调用 slice 进行切片，无参 slice 是从原始 ByteBuf 的 read index 到 write index 之间的内容进行切片，切片后的 max capacity 被固定为这个区间的大小，***因此不能追加 write***
 
 ```java
 ByteBuf slice = origin.slice();
@@ -1597,15 +1597,35 @@ System.out.println(ByteBufUtil.prettyHexDump(origin));
 
 #### 10）duplicate
 
+> 如果原始ByteBuf修改内容后，duplicate的内容会一起变化
+
 【零拷贝】的体现之一，就好比截取了原始 ByteBuf 所有内容，并且没有 max capacity 的限制，也是与原始 ByteBuf 使用同一块底层内存，只是读写指针是独立的
 
 ![](img/0012.png)
+
+```java
+ 				ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer();
+        byteBuf.writeBytes(new byte[]{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'});
+        ByteBuf duplicate = byteBuf.duplicate();
+        log(duplicate);
+        log.debug("上面是duplicate内容");
+        byteBuf.writeByte('a');
+        byteBuf.setByte(6,'p');
+        byteBuf.setByte(12,'r');
+        log(byteBuf);
+        log.debug("上面是byteBuf内容");
+        duplicate.writeByte('b');
+        log(duplicate);
+        log.debug("上面是duplicate内容");
+```
 
 
 
 #### 11）copy
 
 会将底层内存数据进行深拷贝，因此无论读写，都与原始 ByteBuf 无关
+
+
 
 
 
@@ -1692,7 +1712,7 @@ CompositeByteBuf 是一个组合的 ByteBuf，它内部维护了一个 Component
 
 #### 13）Unpooled
 
-Unpooled 是一个工具类，类如其名，提供了非池化的 ByteBuf 创建、组合、复制等操作
+**Unpooled 是一个工具类**，类如其名，提供了非池化的 ByteBuf 创建、组合、复制等操作
 
 这里仅介绍其跟【零拷贝】相关的 wrappedBuffer 方法，可以用来包装 ByteBuf
 
