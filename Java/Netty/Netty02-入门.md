@@ -1795,7 +1795,7 @@ new ServerBootstrap()
                     ctx.writeAndFlush(response);
 
                     // 思考：需要释放 buffer 吗
-                    // 思考：需要释放 response 吗
+                    // 思考：需要释放 response 吗 不能释放
                 }
             });
         }
@@ -1819,7 +1819,8 @@ Channel channel = new Bootstrap()
                     ByteBuf buffer = (ByteBuf) msg;
                     System.out.println(buffer.toString(Charset.defaultCharset()));
 
-                    // 思考：需要释放 buffer 吗
+                    // 思考：需要释放 buffer 吗 
+                  // 可以释放
                 }
             });
         }
