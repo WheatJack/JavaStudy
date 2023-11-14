@@ -206,7 +206,7 @@ serverBootstrap.option(ChannelOption.SO_RCVBUF, 10);
 
 **本质是因为 TCP 是流式协议，消息无边界**
 
-> 滑动窗口
+> **滑动窗口**
 >
 > * TCP 以一个段（segment）为单位，每发送一个段就需要进行一次确认应答（ack）处理，但如果这么做，缺点是包的往返时间越长性能就越差
 >
@@ -228,7 +228,7 @@ serverBootstrap.option(ChannelOption.SO_RCVBUF, 10);
 
 
 
->  MSS 限制
+>  **MSS 限制**
 >
 >  * 链路层对一次能够发送的最大数据有限制，这个限制称之为 MTU（maximum transmission unit），不同的链路设备的 MTU 值也有所不同，例如
 >
@@ -246,7 +246,7 @@ serverBootstrap.option(ChannelOption.SO_RCVBUF, 10);
 
 
 
-> Nagle 算法
+> **Nagle 算法**
 >
 > * 即使发送一个字节，也需要加入 tcp 头和 ip 头，也就是总字节数会使用 41 bytes，非常不经济。因此为了提高网络利用率，tcp 希望尽可能发送足够大的数据，这就是 Nagle 算法产生的缘由
 > * 该算法是指发送端即使还有应该发送的数据，但如果这部分数据很少的话，则进行延迟发送
@@ -261,10 +261,10 @@ serverBootstrap.option(ChannelOption.SO_RCVBUF, 10);
 
 ### 1.4 解决方案
 
-1. 短链接，发一个包建立一次连接，这样连接建立到连接断开之间就是消息的边界，缺点效率太低
-2. 每一条消息采用固定长度，缺点浪费空间
-3. 每一条消息采用分隔符，例如 \n，缺点需要转义
-4. 每一条消息分为 head 和 body，head 中包含 body 的长度
+1. **短链接**，发一个包建立一次连接，这样连接建立到连接断开之间就是消息的边界，缺点效率太低
+2. 每一条消息**采用固定长度**，***缺点浪费空间***
+3. 每一条消息**采用分隔符**，例如 \n，***缺点需要转义***
+4. 每一条消息**分为 head 和 body**，***head 中包含 body 的长度***
 
 
 
