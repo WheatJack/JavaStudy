@@ -459,3 +459,100 @@ Sharding-JDBC支持的结果归并从功能上可分为遍历、排序、分组�
 
 
 
+## 4.水平分表
+
+前面已经介绍过，水平分表是在同一个数据库内，把同一个表的数据按一定规则拆到多个表中。在快速入门里，我 们已经对水平分库进行实现，这里不再重复介绍。
+
+
+
+## 5.水平分库
+
+前面已经介绍过，水平分库是把同一个表的数据按一定规则拆到不同的数据库中，每个库可以放在不同的服务器上。接下来看一下如何使用Sharding-JDBC实现水平分库，咱们继续对快速入门中的例子进行完善。
+
+ **(1)将原有order_db库拆分为order_db_1、order_db_2**
+
+![image-20231118221829308](./img/16.png)
+
+
+
+**(2)分片规则修改**
+
+由于数据库拆分了两个，这里需要配置两个数据源。 分库需要配置分库的策略，和分表策略的意义类似，通过分库策略实现数据操作针对分库的数据库进行操作。
+
+```properties
+# 定义数据源
+spring.shardingsphere.datasource.names=database1,database2
+spring.shardingsphere.datasource.database1.type=com.alibaba.druid.pool.DruidDataSource
+spring.shardingsphere.datasource.database1.driver‐class‐name=com.mysql.jdbc.Driver
+spring.shardingsphere.datasource.database1.url=jdbc:mysql://localhost:3306/db_1?useUnicode=true
+spring.shardingsphere.datasource.database1.username=root
+spring.shardingsphere.datasource.database1.password=
+spring.shardingsphere.datasource.database2.type=com.alibaba.druid.pool.DruidDataSource
+spring.shardingsphere.datasource.database2.driver‐class‐name=com.mysql.jdbc.Driver
+spring.shardingsphere.datasource.database2.url=jdbc:mysql://localhost:3306/db_2?useUnicode=true
+spring.shardingsphere.datasource.database2.username=root
+spring.shardingsphere.datasource.database2.password=
+# 分库策略
+spring.shardingsphere.sharding.tables.t_order.database-strategy.inline.sharding-column=user_id
+spring.shardingsphere.sharding.tables.t_order.database-strategy.inline.algorithm-expression=database$->{user_id%2 +1}
+# 指定t_order表的数据分布情况，配置数据节点
+spring.shardingsphere.sharding.tables.t_order.actual-data-nodes=database$->{1..2}.t_order_$->{1..2}
+```
+
+分库策略定义方式如下:
+
+```properties
+#分库策略，如何将一个逻辑表映射到多个数据源 spring.shardingsphere.sharding.tables.<逻辑表名称>.database‐strategy.<分片策略>.<分片策略属性名>= # 分片策略属性值
+
+#分表策略，如何将一个逻辑表映射为多个实际表 spring.shardingsphere.sharding.tables.<逻辑表名称>.table‐strategy.<分片策略>.<分片策略属性名>= #分 片策略属性值
+```
+
+Sharding-JDBC支持以下几种分片策略:
+
+- **standard:** 标准分片策略，对应StandardShardingStrategy。提供对SQL语句中的=, IN和BETWEEN AND的 分片操作支持。StandardShardingStrategy只支持单分片键，提供PreciseShardingAlgorithm和 RangeShardingAlgorithm两个分片算法。PreciseShardingAlgorithm是必选的，用于处理=和IN的分片。 RangeShardingAlgorithm是可选的，用于处理BETWEEN AND分片，如果不配置 RangeShardingAlgorithm，SQL中的BETWEEN AND将按照全库路由处理。 
+- **complex:** 符合分片策略，对应ComplexShardingStrategy。复合分片策略。提供对SQL语句中的=, IN和 BETWEEN AND的分片操作支持。ComplexShardingStrategy支持多分片键，由于多分片键之间的关系复 杂，因此并未进行过多的封装，而是直接将分片键值组合以及分片操作符透传至分片算法，完全由应用开发 者实现，提供最大的灵活度。 
+- **inline:** 行表达式分片策略，对应InlineShardingStrategy。使用Groovy的表达式，提供对SQL语句中的=和 IN的分片操作支持，只支持单分片键。对于简单的分片算法，可以通过简单的配置使用，从而避免繁琐的Java 代码开发，如: t_user_$->{u_id % 8} 表示t_user表根据u_id模8，而分成8张表，表名称为 t_user_0 到t_user_7 。 
+- **hint:** Hint分片策略，对应HintShardingStrategy。通过Hint而非SQL解析的方式分片的策略。对于分片字段 非SQL决定，而由其他外置条件决定的场景，可使用SQL Hint灵活的注入分片字段。例:内部系统，按照员工 登录主键分库，而数据库中并无此字段。SQL Hint支持通过Java API和SQL注释(待实现)两种方式使用。 
+- none:不分片策略，对应NoneShardingStrategy。不分片的策略。
+
+目前例子中都使用inline分片策略，若对其他分片策略细节若感兴趣，请查阅官方文档: https://shardingsphere.apache.org
+
+
+
+**(3)插入测试**
+
+修改testInsertOrder方法，插入数据中包含不同的user_id
+
+![image-20231118224149801](./img/17.png)
+
+通过日志可以看出，根据user_id的奇偶不同，数据分别落在了不同数据源，达到目标。
+
+**(4)查询测试**
+
+调用快速入门的查询接口进行测试:
+
+```java
+    List<Map> selectListById(@Param("orderId") Long orderId);
+```
+
+通过日志发现，sharding-jdbc将sql路由到m1和m2:
+
+![image-20231118230526053](./img/18.png)
+
+问题分析: 由于查询语句中并没有使用分片键user_id，所以sharding-jdbc将广播路由到每个数据结点。 
+
+> **库的分片键是用的userId**
+
+下边我们在sql中添加分片键进行查询。
+
+```java
+ @Test
+    public void selectListByUserId() {
+        List<Map> maps = orderMapper.selectListByUserIdAndOrderId(3L,932765075595329537L);
+        log.info("list:{}", maps);
+    }
+```
+
+![image-20231118230856581](./img/19.png)
+
+查询条件user_id为3，根据分片策略m$->{user_id % 2 + 1}计算得出database2，此sharding-jdbc将sql路由到database2，见上 图日志。
