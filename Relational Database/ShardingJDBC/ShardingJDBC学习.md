@@ -1,233 +1,226 @@
-# ShardingJDBC学习
+# ShardingJdbc学习
 
-> 官网地址：https://shardingsphere.apache.org
+> https://shardingsphere.apache.org/
 
-## 1、概述
+## 1.4 Sharding-JDBC介绍
 
-### 1.1.分库分表是什么
+### 1.4.1 Sharding-JDBC介绍
 
-小明是一家初创电商平台的开发人员，他负责卖家模块的功能开发，其中涉及了店铺、商品的相关业务，设计如下数据库:
+Sharding-JDBC是当当网研发的开源分布式数据库中间件，从 3.0 开始Sharding-JDBC被包含在 Sharding-Sphere 中，之后该项目进入进入Apache孵化器，4.0版本之后的版本为Apache版本。
 
-![image-20231116121429242](./img/10.png)
+ShardingSphere是一套开源的分布式数据库中间件解决方案组成的生态圈，它由Sharding-JDBC、Sharding- Proxy和Sharding-Sidecar(计划中)这3款相互独立的产品组成。 他们均提供标准化的数据分片、分布式事务和 数据库治理功能，可适用于如Java同构、异构语言、容器、云原生等各种多样化的应用场景。
 
-通过以下SQL能够获取到商品相关的店铺信息、地理区域信息:
+官方地址:https://shardingsphere.apache.org/document/current/cn/overview/
 
-```sql
-SELECT p.*,r.[地理区域名称],s.[店铺名称],s.[信誉] FROM [商品信息] p
-LEFT JOIN [地理区域] r ON p.[产地] = r.[地理区域编码] LEFT JOIN [店铺信息] s ON p.id = s.[所属店铺]
-WHERE p.id = ?
-```
+咱们目前只需关注Sharding-JDBC，它定位为轻量级Java框架，在Java的JDBC层提供的额外服务。 它使用客户端 直连数据库，以jar包形式提供服务，无需额外部署和依赖，可理解为增强版的JDBC驱动，完全兼容JDBC和各种 ORM框架。
 
-```sql
-    create table product_info
-    (
-        id             bigint primary key not null,
-        product_name   varchar(250)       null comment '产品名称',
-        product_belong bigint             not null comment '产品归属哪个商铺',
-        product_area   varchar(250)       null comment '产品所属地区',
-        price          decimal(5, 2)      not null comment '产品价格',
-        image          varchar(250)       not null comment '商品图片',
-        product_desc   varchar(2500)      null comment '产品描述'
-    ) comment '商品信息表';
-    
-        create table store
-    (
-        id             bigint primary key not null,
-        store_name     varchar(250)       null comment '店铺名称',
-        store_score    bigint             not null comment '店铺信用分',
-        store_location varchar(250)       null comment '产品所属地区'
-    ) comment '店铺信息表';
-    
-        create table area_info
-    (
-        id             bigint primary key not null,
-        code     varchar(250)       null comment '地理区域编码',
-        area_name    bigint             not null comment '区域名称',
-        area_level varchar(250)       null comment '地理区域级别 省市区',
-        parent_code varchar(250) comment '上级地理区域code'
-    ) comment '区域信息表';
+Sharding-JDBC的核心功能为数据分片和读写分离，通过Sharding-JDBC，应用可以透明的使用jdbc访问已经分库 分表、读写分离的多个数据源，而不用关心数据源的数量以及数据如何分布。
 
-```
+- 适用于任何基于Java的ORM框架，如: Hibernate, Mybatis, Spring JDBC Template或直接使用JDBC。
+- 基于任何第三方的数据库连接池，如:DBCP, C3P0, BoneCP, Druid, HikariCP等。
+- 支持任意实现JDBC规范的数据库。目前支持MySQL，Oracle，SQLServer和PostgreSQL。
 
-随着公司业务快速发展，数据库中的数据量猛增，访问性能也变慢了，优化迫在眉睫。分析一下问题出现在哪儿 呢? 关系型数据库本身比较容易成为系统瓶颈，单机存储容量、连接数、处理能力都有限。当单表的数据量达到 **1000W**或100G以后，由于查询维度较多，即使添加从库、优化索引，做很多操作时性能仍下降严重。
+![image-20231118161517728](./img/5.png)
 
-方案1:
-
-通过提升服务器硬件能力来提高数据处理能力，比如增加存储容量 、CPU等，这种方案成本很高，并且如果瓶颈在MySQL本身那么提高硬件也是有很的。
-
-方案2:
-
-把数据分散在不同的数据库中，使得单一数据库的数据量变小来缓解单一数据库的性能问题，从而达到提升数据库性能的目的，如下图:将电商数据库拆分为若干独立的数据库，并且对于大表也拆分为若干小表，通过这种数据库拆分的方法来解决数据库的性能问题。
-
-![image-20231115214045054](./img/6.png)
-
-分库分表就是为了解决由于数据量过大而导致数据库性能降低的问题，将原来独立的数据库拆分成若干数据库组成，将数据大表拆分成若干数据表组成，使得单一数据库、单一数据表的数据量变小，从而达到提升数据库性能的目的。
+上图展示了Sharding-Jdbc的工作方式，使用Sharding-Jdbc前需要人工对数据库进行分库分表，在应用程序中加入 Sharding-Jdbc的Jar包，应用程序通过Sharding-Jdbc操作分库分表后的数据库和数据表，由于Sharding-Jdbc是对 Jdbc驱动的增强，使用Sharding-Jdbc就像使用Jdbc驱动一样，在应用程序中是无需指定具体要操作的分库和分表 的。
 
 
 
-### 1.2.分库分表的方式
+## 2.Sharding-JDBC快速入门
 
-分库分表包括分库和分表两个部分，在生产中通常包括:垂直分库、水平分库、垂直分表、水平分表四种方式。
+### 2.1 需求说明
 
-#### 1.2.1.垂直分表
+本章节使用Sharding-JDBC完成对订单表的水平分表，通过快速入门程序的开发，快速体验Sharding-JDBC的使用 方法。
 
-下边通过一个商品查询的案例讲解垂直分表:
-
-通常在商品列表中是不显示商品详情信息的，如下图:
-
-用户在浏览商品列表时，只有对某商品感兴趣时才会查看该商品的详细描述。因此，商品信息中商品描述字段访问 频次较低，且该字段存储占用空间较大，访问单个数据IO时间较长;商品信息中商品名称、商品图片、商品价格等 其他字段数据访问频次较高。
-
-由于这两种数据的特性不一样，因此他考虑将商品信息表拆分如下:
-
-将访问频次低的商品描述信息单独存放在一张表中，访问频次较高的商品基本信息单独放在一张表中。
+人工创建两张表，t_order_1和t_order_2，这两张表是订单表拆分后的表，通过Sharding-Jdbc向订单表插入数据， 按照一定的分片规则，主键为偶数的进入t_order_1，另一部分数据进入t_order_2，通过Sharding-Jdbc 查询数 据，根据 SQL语句的内容从t_order_1或t_order_2查询数据。
 
 
 
-![image-20231116202016580](./img/1.png)
+### 2.2.环境搭建
 
-商品列表可采用以下sql:
+#### 2.2.2 创建数据库
 
 ```sql
-SELECT p.*,r.[地理区域名称],s.[店铺名称],s.[信誉] FROM [商品信息] p
 
-LEFT JOIN [地理区域] r ON p.[产地] = r.[地理区域编码] LEFT JOIN [店铺信息] s ON p.id = s.[所属店铺] WHERE...ORDER BY...LIMIT...
-```
-
-需要获取商品描述时，再通过以下sql获取:
-
-```sql
-SELECT *
-FROM [商品描述] WHERE [商品ID] = ?
-```
-
-```sql
-create table product_info_detail
+CREATE DATABASE `db1` CHARACTER SET 'utf8' COLLATE 'utf8_general_ci';
+-- auto-generated definition
+create table t_order_1
 (
-    id             bigint primary key not null,
-    product_id   varchar(250)       null comment '产品id',
-    product_desc   varchar(2500)      null comment '产品描述'
-) comment '商品信息详细表';
+    order_id bigint         not null comment '订单id'
+        primary key,
+    price    decimal(10, 2) not null comment '订单价格',
+    user_id  bigint         not null comment '下单用户id',
+    status   varchar(50)    not null comment '订单状态'
+)
+    charset = utf8mb4
+    row_format = DYNAMIC;
+
+-- auto-generated definition
+create table t_order_2
+(
+    order_id bigint         not null comment '订单id'
+        primary key,
+    price    decimal(10, 2) not null comment '订单价格',
+    user_id  bigint         not null comment '下单用户id',
+    status   varchar(50)    not null comment '订单状态'
+)
+    charset = utf8mb4
+    row_format = DYNAMIC;
 ```
 
-小明进行的这一步优化，就叫垂直分表。
+#### 2.2.3.引入maven依赖
+
+> 见GitHub的详细工程代码：https://github.com/WheatJack/JavaStudyProject/tree/master/ShardingJDBCStudy
+
+```xml
+ <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>sharding-jdbc-spring-boot-starter</artifactId>
+            <version>4.1.1</version>
+        </dependency>
+```
+
+详细的CRUD见：GitHub的详细工程代码：https://github.com/WheatJack/JavaStudyProject/tree/master/ShardingJDBCStudy
+
+### 	2.4.流程分析
+
+通过日志分析，Sharding-JDBC在拿到用户要执行的sql之后干了哪些事儿:
+
+1. 解析sql，获取**片键值**，在本例中是order_id
+2. Sharding-JDBC通过规则配置 t_order_$->{order_id % 2 + 1}，知道了当order_id为偶数时，应该往 t_order_1表插数据，为奇数时，往t_order_2插数据。
+3. 于是Sharding-JDBC根据order_id的值改写sql语句，改写后的SQL语句是真实所要执行的SQL语句。 
+4. 执行改写后的真实sql语
+5. 将所有真正执行sql的结果进行汇总合并，返回。
+
+### 2.5.其他集成方式
+
+Sharding-JDBC不仅可以与spring boot良好集成，它还支持其他配置方式，共支持以下四种集成方式。
+
+**Java 配置**
+
+添加配置类:
+
+```java
+package com.example.shardingjdbcstudy.config;
+
+import com.alibaba.druid.pool.DruidDataSource;
+import org.apache.shardingsphere.api.config.sharding.KeyGeneratorConfiguration;
+import org.apache.shardingsphere.api.config.sharding.ShardingRuleConfiguration;
+import org.apache.shardingsphere.api.config.sharding.TableRuleConfiguration;
+import org.apache.shardingsphere.api.config.sharding.strategy.InlineShardingStrategyConfiguration;
+import org.apache.shardingsphere.shardingjdbc.api.ShardingDataSourceFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import javax.sql.DataSource;
+import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+
+/**
+ * <p>
+ * JDBC的代码配置
+ * </p>
+ *
+ * @author JackGao
+ * @since 11/18/23
+ **/
+@Configuration
+public class ShardingJdbcConfig {
+    /**
+     * <p> 定义数据源 <p>
+     *
+     * @author JackGao
+     * @since 11/18/23 16:46
+     */
+    Map<String, DataSource> createDataSourceMap() {
+        DruidDataSource dataSource1 = new DruidDataSource();
+        dataSource1.setDriverClassName("com.mysql.jdbc.Driver");
+        dataSource1.setUrl("jdbc:mysql://localhost:3306/order_db?useUnicode=true");
+        dataSource1.setUsername("root");
+        dataSource1.setPassword("root");
+        Map<String, DataSource> result = new HashMap<>();
+        result.put("m1", dataSource1);
+        return result;
+    }
+
+    /**
+     * <p> 定义主键生成策略 <p>
+     *
+     * @author JackGao
+     * @since 11/18/23 16:47
+     */
+    private static KeyGeneratorConfiguration getKeyGeneratorConfiguration() {
+        return new
+                KeyGeneratorConfiguration("SNOWFLAKE", "order_id");
+    }
+
+    /**
+     * <p> 定义t_order表的分片策略 <p>
+     *
+     * @author JackGao
+     * @since 11/18/23 16:47
+     */
+    TableRuleConfiguration getOrderTableRuleConfiguration() {
+        TableRuleConfiguration result = new TableRuleConfiguration("t_order", "m1.t_order_$‐> {1..2} ");
+        result.setTableShardingStrategyConfig(new
+                InlineShardingStrategyConfiguration("order_id", "t_order_$‐>{order_id % 2 + 1}"));
+        result.setKeyGeneratorConfig(getKeyGeneratorConfiguration());
+        return result;
+    }
 
-> 就是把一张表横过来 然后 竖着（垂直）切分 一分为二
+    /**
+     * <p> 定义sharding‐Jdbc数据源 <p>
+     *
+     * @author JackGao
+     * @since 11/18/23 16:48
+     */
+    @Bean
+    DataSource getShardingDataSource() throws SQLException {
+        ShardingRuleConfiguration shardingRuleConfig = new ShardingRuleConfiguration();
+        shardingRuleConfig.getTableRuleConfigs().add(getOrderTableRuleConfiguration());
+        //spring.shardingsphere.props.sql.show = true
+        Properties properties = new Properties();
+        properties.put("sql.show", "true");
+        return ShardingDataSourceFactory.createDataSource(createDataSourceMap(), shardingRuleConfig, properties);
+    }
 
-![image-20231115221101434](./img/7.png)
 
-它带来的提升是: 
+}	
+```
 
-1. 为了避免IO争抢并减少锁表的几率，查看详情的用户与商品信息浏览互不影响 
-2. 充分发挥热门数据的操作效率，商品信息的操作的高效率不会被商品描述的低效率所拖累。
+由于采用了配置类所以需要屏蔽原来application.properties文件中spring.shardingsphere开头的配置信息。 还需要在SpringBoot启动类中屏蔽使用spring.shardingsphere配置项的类:
 
-一般来说，某业务实体中的各个数据项的访问频次是不一样的，部分数据项可能是占用存储空间**比较大的BLOB或 是TEXT**。例如上例中的商品描述。所以，当表数据量很大时，可以将表按字段切开，将热门字段、冷门字段分开放 置在不同库中，这些库可以放在不同的存储设备上，避免IO争抢。垂直切分带来的性能提升主要集中在热门数据的 操作效率上，而且磁盘争用情况减少。
+```java
 
-通常我们按以下原则进行垂直拆分:
+/**
+ * <p> 如果使用Java配置类的方法配置类 ShardingJdbc 那么需要屏蔽shardingJdbc的自己的配置类
+ * 切记是该包下：import org.apache.shardingsphere.shardingjdbc.spring.boot.SpringBootConfiguration;
+ * <p>
+ * @author JackGao
+ * @since 11/18/23 16:54
+ */
+@SpringBootApplication(exclude = {SpringBootConfiguration.class})
+public class ShardingJdbcStudyApplication {
 
-1. **把不常用的字段单独放在一张表;**
-2. **把text，blob等大字段拆分出来放在附表中; 3. 经常组合查询的列放在一张表中;**
+    public static void main(String[] args) {
+        SpringApplication.run(ShardingJdbcStudyApplication.class, args);
+    }
 
+}
+```
 
 
-#### 1.2.2.垂直分库
 
-通过垂直分表性能得到了一定程度的提升，但是还没有达到要求，并且磁盘空间也快不够了，因为数据还是始终限 制在一台服务器，库内垂直分表只解决了单一表数据量过大的问题，但没有将表分布到不同的服务器上，因此每个 表还是竞争同一个物理机的CPU、内存、网络IO、磁盘。
+## 3.Sharding-JDBC执行原理
 
-经过思考，他把原有的SELLER_DB(卖家库)，分为了PRODUCT_DB(商品库)和STORE_DB(店铺库)，并把这两个库分 散到不同服务器，如下图:
+### 3.1 基本概念
 
-![image-20231116202436620](./img/2.png)
+在了解Sharding-JDBC的执行原理前，需要了解以下概念:
 
-由于商品信息与商品描述业务耦合度较高，因此一起被存放在PRODUCT_DB(商品库);而店铺信息相对独立，因此 单独被存放在STORE_DB(店铺库)。
+**逻辑表：**水平拆分的数据表的总称。例:订单数据表根据主键尾数拆分为10张表，分别是 t_order_0 、 t_order_1 到 t_order_9 ，他们的逻辑表名为 t_order 。
 
-小明进行的这一步优化，就叫**垂直分库。**
+**真实表：**在分片的数据库中真实存在的物理表。即上个示例中的 t_order_0 到 t_order_9 。
 
-> 把原本属于一个库里的表按照业务划分成三个数据库
-
-![image-20231115220500358](./img/6.png)
-
-垂直分库是指按照业务将表进行分类，分布到不同的数据库上面，每个库可以放在不同的服务器上，它的核心理念是专库专用。
-
-它带来的提升是:
-
-- 解决业务层面的耦合，业务清晰 
-- 能对不同业务的数据进行分级管理、维护、监控、扩展等 
-- 高并发场景下，垂直分库一定程度的提升IO、数据库连接数、降低单机硬件资源的瓶颈
-
-垂直分库通过将表按业务分类，然后分布在不同数据库，并且可以将这些数据库部署在不同服务器上，从而达到多个服务器共同分摊压力的效果，但是依然没有解决单表数据量过大的问题。
-
-
-
-#### 1.2.3.水平分库
-
-> 数据表结构完全一致，只是把数据按照规则划分到不同的数据库
-
-经过垂直分库后，数据库性能问题得到一定程度的解决，但是随着业务量的增长，PRODUCT_DB(商品库)单库存储 数据已经超出预估。粗略估计，目前有8w店铺，每个店铺平均150个不同规格的商品，再算上增长，那商品数量得 往1500w+上预估，并且PRODUCT_DB(商品库)属于访问非常频繁的资源，单台服务器已经无法支撑。此时该如何优化?
-
-再次分库?但是从业务角度分析，目前情况已经无法再次垂直分库。 尝试水平分库，将店铺ID为单数的和店铺ID为双数的商品信息分别放在两个库中。
-
-![image-20231116202616367](./img/4.png)
-
-也就是说，要操作某条数据，先分析这条数据所属的店铺ID。如果店铺ID为双数，将此操作映射至 RRODUCT_DB1(商品库1);如果店铺ID为单数，将操作映射至RRODUCT_DB2(商品库2)。此操作要访问数据库名 称的表达式为RRODUCT_DB[店铺ID%2 + 1] 。
-
-小明进行的这一步优化，就叫水平分库。
-
-> 根据特定的规则把数据划分到指定的数据库里面
-
-![image-20231115222309019](./img/8.png)
-
-水平分库是把同一个表的数据按一定规则拆到不同的数据库中，每个库可以放在不同的服务器上
-
-它带来的提升是:
-
-- 解决了单库大数据，高并发的性能瓶颈。 
-- 提高了系统的稳定性及可用性。
-
-当一个应用难以再细粒度的垂直切分，或切分后数据量行数巨大，存在单库读写、存储性能瓶颈，这时候就需要进行水平分库了，经过水平切分的优化，往往能解决单库存储量及性能瓶颈。但由于同一个表被分配在不同的数据库，需要额外进行数据操作的路由工作，因此大大提升了系统复杂度。
-
-
-
-#### 1.2.4.水平分表
-
-按照水平分库的思路对他把PRODUCT_DB_X(商品库)内的表也可以进行水平拆分，其目的也是为解决单表数据量大 的问题，如下图:
-
-![image-20231116202930776](./img/3.png)
-
-与水平分库的思路类似，不过这次操作的目标是表，商品信息及商品描述被分成了两套表。如果商品ID为双数，将 此操作映射至商品信息1表;如果商品ID为单数，将操作映射至商品信息2表。此操作要访问表名称的表达式为商品 信息[商品ID%2 + 1] 。小明进行的这一步优化，就叫水平分表。
-
-水平分表是在同一个数据库内，把同一个表的数据按一定规则拆到多个表中。
-
-它带来的提升是:
-
-- **优化单一表数据量过大而产生的性能问题** 
-- **避免IO争抢并减少锁表的几率**
-
-库内的水平分表，解决了单一表数据量过大的问题，分出来的小表中只包含一部分数据，从而使得单个表的数据量变小，提高检索性能。
-
-
-
-#### 1.2.5 小结 
-
-本章介绍了分库分表的各种方式，它们分别是垂直分表、垂直分库、水平分库和水平分表:
-
-**垂直分表：**可以把一个宽表的字段按访问频次、是否是大字段的原则拆分为多个表，这样既能使业务清晰，还能提升部分性能。拆分后，尽量从业务角度避免联查，否则性能方面将得不偿失。
-
-**垂直分库：**可以把多个表按业务耦合松紧归类，分别存放在不同的库，这些库可以分布在不同服务器，从而使访问压力被多服务器负载，大大提升性能，同时能提高整体架构的业务清晰度，不同的业务库可根据自身情况定制优化方案。但是它需要解决跨库带来的所有复杂问题。
-
-**水平分库：**可以把一个表的数据(按数据行)分到多个不同的库，每个库只有这个表的部分数据，这些库可以分布在 不同服务器，从而使访问压力被多服务器负载，大大提升性能。它不仅需要解决跨库带来的所有复杂问题，还要解 决数据路由的问题(数据路由问题后边介绍)。
-
-**水平分表：**可以把一个表的数据(按数据行)分到多个同一个数据库的多张表中，每个表只有这个表的部分数据，这 样做能小幅提升性能，它仅仅作为水平分库的一个补充优化。
-
-一般来说，在系统设计阶段就应该根据业务耦合松紧来确定垂直分库，垂直分表方案，在数据量及访问压力不是特别大的情况，首先考虑缓存、读写分离、索引技术等方案。若数据量极大，且持续增长，再考虑水平分库水平分表方案。
-
-
-
-
-
-
-
-
-
-
-
-
-
+**数据节点：**数据分片的最小物理单元。由数据源名称和数据表组成，例: database1.t_order_0 。
