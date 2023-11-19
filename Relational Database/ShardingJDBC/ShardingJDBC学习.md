@@ -556,3 +556,100 @@ Sharding-JDBC支持以下几种分片策略:
 ![image-20231118230856581](./img/19.png)
 
 查询条件user_id为3，根据分片策略m$->{user_id % 2 + 1}计算得出database2，此sharding-jdbc将sql路由到database2，见上 图日志。
+
+
+
+## 6.垂直分库
+
+前面已经介绍过，垂直分库是指按照业务将表进行分类，分布到不同的数据库上面，每个库可以放在不同的服务器上，它的核心理念是专库专用。接下来看一下如何使用Sharding-JDBC实现垂直分库。
+
+**(1)创建数据库**
+
+创建数据库user_db
+
+```mysql
+CREATE DATABASE `user_db` CHARACTER SET 'utf8' COLLATE 'utf8_general_ci';
+```
+
+在user_db中创建t_user表
+
+```mysql
+-- auto-generated definition
+create table t_user
+(
+    user_id   bigint       not null comment '用户id'
+        primary key,
+    fullname  varchar(255) not null comment '用户姓名',
+    user_type char         null comment '用户类型'
+)
+    row_format = DYNAMIC;
+
+```
+
+新增单元测试方法:
+
+```java
+
+@Mapper
+public interface UserMapper {
+
+    @Insert("INSERT INTO user_db.t_user (user_id, fullname, user_type) VALUES (#{user_id}, #{fullname}, #{user_type});")
+    Integer insertUser(@Param("user_id") Long userId,@Param("fullname") String fullName,@Param("user_type") String userType);
+
+}
+
+@Test
+    public void testInsertUser() {
+        for (int i = 0; i < 10; i++) {
+            Integer i1 = userMapper.insertUser(Long.parseLong(String.valueOf(i + 99)), UUID.randomUUID().toString(), String.valueOf(i));
+            log.info("result,{}", i1);
+        }
+    }
+
+```
+
+新增properties
+
+```properties
+# 固定分配至database3的t_user真实表 ---- t_user分表策略，固定分配至database3的t_user真实表
+spring.shardingsphere.sharding.tables.t_user.actual-data-nodes=database3.t_user
+spring.shardingsphere.sharding.tables.t_user.table-strategy..inline.sharding-column=user_id
+spring.shardingsphere.sharding.tables.t_user.table-strategy..inline..algorithm-expression=t_user
+
+spring.shardingsphere.datasource.database3.type=com.alibaba.druid.pool.DruidDataSource
+spring.shardingsphere.datasource.database3.driver‐class‐name=com.mysql.jdbc.Driver
+spring.shardingsphere.datasource.database3.url=jdbc:mysql://localhost:3306/user_db?useUnicode=true
+spring.shardingsphere.datasource.database3.username=root
+spring.shardingsphere.datasource.database3.password=
+```
+
+![image-20231119202321182](./img/20.png)
+
+
+
+## 7.公共表
+
+公共表属于系统中数据量较小，变动少，而且属于高频联合查询的依赖表。参数表、数据字典表等属于此类型。可 以将这类表在每个数据库都保存一份，所有更新操作都同时发送到所有分库执行。接下来看一下如何使用 Sharding-JDBC实现公共表。
+
+分别在user_db、order_db_1、order_db_2中创建t_dict表:
+
+```mysql
+-- auto-generated definition
+create table t_dict
+(
+    dict_id bigint      not null comment '字典id'
+        primary key,
+    type    varchar(50) not null comment '字典类型',
+    code    varchar(50) not null comment '字典编码',
+    value   varchar(50) not null comment '字典值'
+);
+```
+
+
+
+
+
+
+
+
+
