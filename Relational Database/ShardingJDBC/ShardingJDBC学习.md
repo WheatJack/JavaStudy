@@ -645,11 +645,36 @@ create table t_dict
 );
 ```
 
+新增properties配置
 
+```properties
+# 公共表 广播模式处理 可以配置多个公共表
+spring.shardingsphere.sharding.broadcast‐tables=t_dict
+```
 
+新增测试：
 
+```java
 
+    @Test
+    public void testInsertUser() {
+        for (int i = 0; i < 10; i++) {
+            Integer i1 = dictMapper.insertDict(Long.parseLong(String.valueOf(i + 99)), UUID.randomUUID().toString(), UUID.randomUUID().toString(), String.valueOf(i));
+            log.info("result,{}", i1);
+        }
+    }
+    
+    @Insert("INSERT INTO t_dict (dict_id, type, code,value) VALUES (#{dict_id},#{type}, #{code}, #{value});")
+    Integer insertDict(@Param("dict_id") Long dictId, @Param("type") String type, @Param("code") String code, @Param("value") String value);
 
+```
 
+测试结果：
 
+同时像多个库中插入数据
 
+![image-20231119203409953](./img/21.png)
+
+![image-20231119204111747](./img/22.png)
+
+通过日志可以看出，对t_dict的表的操作被广播至所有数据源。 测试删除字典，观察是否把所有数据源中该 公共表的记录删除。
