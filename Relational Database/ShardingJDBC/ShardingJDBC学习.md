@@ -793,3 +793,63 @@ start replica ;
 show slave status;    
 ```
 
+两个状态都为Yes表示成功
+
+![image-20231127100710270](./img/28.png)
+
+
+
+### 8.3.实现sharding-jdbc读写分离
+
+**properties配置**
+
+```properties
+# 定义数据源 增加数据源
+spring.shardingsphere.datasource.names=database1,database2,database3,database4
+spring.shardingsphere.datasource.database4.type=com.alibaba.druid.pool.DruidDataSource
+spring.shardingsphere.datasource.database4.driver‐class‐name=com.mysql.jdbc.Driver
+spring.shardingsphere.datasource.database4.url=jdbc:mysql://xxxxxxx:3306/user_db?useUnicode=true
+spring.shardingsphere.datasource.database4.username=xxxxx
+spring.shardingsphere.datasource.database4.password=xxxxx
+
+
+# 主从库配置 ds ds0 自己定义的 不重复  database4 主库 负责写操作 database3 从库 负责读操作
+spring.shardingsphere.sharding.master-slave-rules.ds0.master-data-source-name=database4
+spring.shardingsphere.sharding.master-slave-rules.ds0.slave-data-source-names=database3
+
+# 固定分配至database3的t_user真实表 ---- t_user分表策略，固定分配至database3的t_user真实表 这里实际的node要改成读写分离那个定义的ds0
+spring.shardingsphere.sharding.tables.t_user.actual-data-nodes=ds0.t_user
+```
+
+> 注意点 原来t_user 这个是指定的database3 所以这次要把这个改成 上面读写分离的ds0
+
+**测试读写分离**
+
+```java
+// 新增数据   
+@Test
+    public void testInsertUser() {
+        for (int i = 0; i < 10; i++) {
+            Integer i1 = userMapper.insertUser(Long.parseLong(String.valueOf(i + 99)), UUID.randomUUID().toString(), String.valueOf(i));
+            log.info("result,{}", i1);
+        }
+    }
+```
+
+![image-20231127111358578](./img/29.png)
+
+> 发现都已经插入到master节点中去了
+
+```java
+// 查询数据
+@Test
+public void testSelectUserByUserId() {
+    Map map = userMapper.selectUserByUserId(99L);
+    log.info("result,{}", map);
+}
+```
+
+![image-20231127111546972](./img/30.png)
+
+>  发现是从slave中查询数据
+
