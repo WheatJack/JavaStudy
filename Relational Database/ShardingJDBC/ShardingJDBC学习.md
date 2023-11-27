@@ -678,3 +678,118 @@ spring.shardingsphere.sharding.broadcast‐tables=t_dict
 ![image-20231119204111747](./img/22.png)
 
 通过日志可以看出，对t_dict的表的操作被广播至所有数据源。 测试删除字典，观察是否把所有数据源中该 公共表的记录删除。
+
+
+
+## 8.读写分离
+
+### 8.1 理解读写分离
+
+面对日益增加的系统访问量，数据库的吞吐量面临着巨大瓶颈。 对于同一时刻有大量并发读操作和较少写操作类型的应用系统来说，将数据库拆分为主库和从库，主库负责处理事务性的增删改操作，从库负责处理查询操作，能够有效的避免由数据更新**导致的行锁**，使得整个系统的查询性能得到极大的改善。
+
+<img src="./img/23.png" alt="image-20231119205042553" style="zoom:50%;" />
+
+通过一主多从的配置方式，可以将查询请求均匀的分散到多个数据副本，能够进一步的提升系统的处理能力。 使用**多主多从**的方式，不但能够提升系统的吞吐量，还能够提升系统的可用性，可以达到在任何一个数据库宕机，甚至磁盘物理损坏的情况下仍然不影响系统的正常运行。
+
+<img src="./img/24.png" alt="image-20231119205246855" style="zoom:50%;" />
+
+
+
+**读写分离的数据节点中的数据内容是一致的**，而**水平分片的每个数据节点的数据内容却并不相同**。将水平分片和读写分离联合使用，能够更加有效的提升系统的性能。
+
+Sharding-JDBC读写分离则是根据SQL语义的分析，将读操作和写操作分别路由至主库与从库。它提供透明化读写分离，让使用方尽量像使用一个数据库一样使用主从数据库集群。
+
+<img src="./img/25.png" alt="image-20231119210127621" style="zoom:50%;" />
+
+
+
+Sharding-JDBC提供一主多从的读写分离配置，可独立使用，也可配合分库分表使用，同一线程且同一数据库连接 内，如有写入操作，以后的读操作均从主库读取，用于保证数据一致性。Sharding-JDBC不提供主从数据库的数据 同步功能，需要采用其他机制支持。
+
+![image-20231119210543156](/Users/gaoshang/IdeaProjects/JavaStudy/Relational Database/ShardingJDBC/img/26.png)
+
+接下来，咱们对上面例子中user_db进行读写分离实现。为了实现Sharding-JDBC的读写分离，首先，要进行 mysql的主从同步配置。
+
+
+
+### 8.2.mysql主从同步(Mac And Linux)
+
+> 我这边的master节点的宿主机是Mac，然后slave节点是VM 装的centos7
+>
+> 然后mysql 的版本都是8版本
+
+**Master节点配置**
+
+> brew 默认安装的位置在/usr/local/etc
+>
+> 记得下面的配置都是在[mysqld]这个节点下面👇
+
+```ini
+[mysqld]
+# 开启同步
+log-bin=mysql-bin
+# 设置服务id 这个服务id必须和slave节点都不一致 需要唯一性
+server-id = 3
+# 需要同步的数据库
+binlog-do-db=user_db
+# 忽略同步的数据库 mysql默认自带的设置不同步
+binlog-ignore-db=mysql
+binlog-ignore-db=information_schema
+binlog-ignore-db=performance_schema
+```
+
+新增主从同步专用的用户
+
+```SQL
+CREATE USER 'db_sync'@'%' IDENTIFIED BY 'JackGao5210....';
+# MYSQL8.0
+alter user 'db_sync'@'%'  IDENTIFIED with mysql_native_password by 'JackGao5210....';
+GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'db_sync'@'%';
+FLUSH PRIVILEGES;
+show variables like 'server_id';
+
+```
+
+查看binlog文件的名称和所同步的position
+
+```sql
+reset master;
+show master status;
+```
+
+![image-20231123101336352](./img/27.png)
+
+
+
+**Slave节点配置**
+
+修改**slave**的mysql的ini文件信息
+
+```ini
+log-bin = mysql-bin
+server-id = 1
+replicate_wild_do_table=user_db.%
+replicate_wild_ignore_table=mysql.% 
+replicate_wild_ignore_table=information_schema.% 
+replicate_wild_ignore_table=performance_schema.%
+```
+
+设置同步信息 执行sql
+
+```sql
+# 停止slave节点
+stop slave ;
+stop replica ;
+# 更改master节点同步信息
+CHANGE MASTER TO
+    master_host = '192.168.0.101',
+    master_user = 'db_sync', 
+    master_password = 'JackGao5210....', 
+    master_log_file = 'mysql-bin.000001', # master节点 同步的binlog文件名称
+    master_log_pos = 157;   # master节点 同步的binlog文件 的位置
+# 开启slave
+start slave ;
+start replica ;
+# 查看当前slave节点的信息
+show slave status;    
+```
+
