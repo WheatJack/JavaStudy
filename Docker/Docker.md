@@ -50,7 +50,7 @@ docker -v
 systemctl start docker
 ```
 
-**停止docker服务: **
+**停止docker服务:** 
 
 ```
 systemctl stop docker
