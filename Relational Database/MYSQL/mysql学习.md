@@ -874,7 +874,7 @@ set session  transaction isolation level serializable ;
 
 ### MYSQL体系结构
 
-![image-20220227154727549](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs49dzy7vj20ms0drmyv.jpg)
+![image-20240229234544057](./img/8.png)
 
 
 
