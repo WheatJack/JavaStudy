@@ -942,7 +942,7 @@ show variables like '%innodb_file_per_table%';
 
 ###### 逻辑存储结构
 
-![image-20220227160549373](https://tva1.sinaimg.cn/large/e6c9d24egy1gzs4shhqg6j20sg0bqtai.jpg)
+![image-20240229234839931](./img/9.png)
 
 **表空间**
 
