@@ -1703,11 +1703,15 @@ load data local infile '/root/sql.log' into 'table_name' files terminated by ','
 
 在innoDB存储引擎中，表数据都是根据主键顺序组织存放的，这种存储方式的表称为索引组织表（index organized table IOT）
 
-![image-20220305233519992](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzfi2li23j20qn0a675p.jpg)
+![image-20240301203538673](./img/23.png)
+
+行数据，都是存储在聚集索引的叶子节点上的。而我们之前也讲解过InnoDB的逻辑结构图:
+
+![image-20240301203648083](./img/24.png)
+
+在InnoDB引擎中，数据行是记录在逻辑结构 page 页中的，而每一个页的大小是固定的，默认16K。 那也就意味着， 一个页中所存储的行也是有限的，如果插入的数据行row在该页存储不小，将会存储 到下一个页中，页与页之间会通过指针连接。
 
 
-
-![image-20220305233554459](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzfilmp7vj20qz0bf75x.jpg)
 
 ###### 页分裂
 
@@ -1715,43 +1719,55 @@ load data local infile '/root/sql.log' into 'table_name' files terminated by ','
 
 **主键顺序插入：**
 
-![image-20220305234030092](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzfndorr1j20uj03vgm5.jpg)
+![image-20240301203758226](./img/25.png)
 
-**主键乱序插入：**
+![image-20240301203842977](./img/26.png)
+
+
+
+**主键乱序插入**
 
 **初始**
 
-![image-20220305234221533](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzfpbbrxoj20v308h0tf.jpg)
+![image-20240301204057741](./img/27.png)
 
 **移动新开启的页**
 
-![image-20220305234302767](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzfq0xskij20ve050dgf.jpg)
+![image-20240301204128405](./img/28.png)
 
 **插入数据到数据页**
 
-![image-20220305234338508](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzfqng4wqj20ub03uwf2.jpg)
+![image-20240301204206155](./img/29.png)
 
 **重新设置链表**
 
-![image-20220305234406361](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzfr4spmcj20u204fgm6.jpg)
+![image-20240301204319032](./img/30.png)
+
+
+
+
 
 ###### 页合并
 
 当删除一行记录时，实际上记录并没有被物理删除，只是记录被标记（flaged）为删除并且它的空间变得允许被其他记录声明使用。
 
-当页中删除的记录达到merge_threshold(默认页的50%)，InnoDB会开始寻找最靠近的页（前或者后）看看是否可以将两个页合并以优化空间使用。
+当页中删除的记录达到**merge_threshold**(默认页的50%)，InnoDB会开始寻找最靠近的页（前或者后）看看是否可以将两个页合并以优化空间使用。
 
 **删除部分行记录**
 
-![image-20220305234839890](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzfvvtzs1j20u205daar.jpg)
+![image-20240301204429292](./img/31.png)
+
+> 当页中删除的记录达到 MERGE_THRESHOLD(默认为页的50%)，InnoDB会开始寻找最靠近的页(前 或后)看看是否可以将两个页合并以优化空间使用。
 
 **合并页**
 
-![image-20220305234905450](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzfwbr4j6j20uc03maan.jpg)
+![image-20240301204628783](./img/34.png)
+
+
 
 **插入新数据**
 
-![image-20220305234942163](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzfwytlswj20uo03yaap.jpg)
+![image-20240301204608056](./img/33.png)
 
 **Tips：**
 
@@ -1763,13 +1779,13 @@ merge_threshold：合并页的阀值，可以自己设置，在创建表或者�
 
 满足业务需求的情况下，尽量降低主键的长度
 
-插入数据时，尽量选择顺序插入，选择使用AUTO_INCREMENT 自增主键
+插入数据时，**尽量选择顺序插入**，选择使用AUTO_INCREMENT 自增主键
 
 尽量不要使用UUID做主键或者是其他的自然主键，如身份证号
 
 业务操作时，避免对主键的修改
 
-![image-20220305235408415](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzg1kwabzj20vw06mmxz.jpg)
+![image-20240301204737815](./img/35.png)
 
 
 
@@ -1796,11 +1812,9 @@ select id ,name,age,phone from table_user order by age ,phone;
 
 如果是顺序，从链表的左边查询走，如果是倒序，从链表的右边开始查询
 
-![image-20220306112358502](https://tva1.sinaimg.cn/large/e6c9d24egy1gzzzzcyk5hj20uz03ewex.jpg)
+![image-20240301205023288](./img/36.png)
 
 **顺序、倒序查询示意图（索引覆盖情况下）：**
-
-![image-20220306112520663](https://tva1.sinaimg.cn/large/e6c9d24egy1h0000t0e7mj20u302q3yv.jpg)
 
 
 
@@ -1810,9 +1824,9 @@ select id ,name,age,phone from table_user order by age ,phone;
 
 根据排序字段建立合适的索引，多字段排序时，也遵循最左前缀法则
 
-尽量使用索引覆盖
+**尽量使用索引覆盖**
 
-多字段排序时候，一个升序一个降序，需要注意联合索引在创建时多规则（ASC/DESC）
+多字段排序时候，一个升序一个降序，需要注意联合索引在创建时多定义（ASC/DESC）
 
 如果不可避免的出现filesort，大数据量排序时，可以适当增加排序缓冲区大小 **sort_buffer_size（默认256K）**
 
@@ -1844,8 +1858,6 @@ show variables like '%sort_buffer_size%';
 select * from employ where  id in (select id from employ limit 0,10);
 ```
 
-![image-20220306114537386](https://tva1.sinaimg.cn/large/e6c9d24egy1h000lvyuf4j20zc06e759.jpg)
-
 只能通过关联查询
 
 ```mysql
@@ -1856,9 +1868,9 @@ select a.* from employ a ,(select id from employ limit 0,10) t1 where  a.id =t1.
 
 ##### count优化
 
-MyISAM引擎是把一个表的总行数存在了磁盘上，因此执行count(*) 的时候会直接返回这个数，效率高；
+**MyISAM引擎是把一个表的总行数存在了磁盘上**，因此执行count(*) 的时候会直接返回这个数，效率高；
 
-InnoDB引擎就麻烦了，他执行count(*) 的时候，需要把数据一行一行的从引擎中读取出来，然后累计计数。
+InnoDB引擎就麻烦了，他执行count(*) 的时候，**需要把数据一行一行的从引擎中读取出来，然后累计计数。**
 
 ###### 优化思路
 
@@ -1904,7 +1916,7 @@ update employ set id ='1111' where status =1000;
 
 注意⚠️⚠️：
 
-**InnoDB的行锁是针对索引加的锁， 不是针对记录加的锁，并且该索引不能失效，否则会从行锁升级为表锁。**
+**InnoDB的行锁是针对B+Tree索引index加的锁， 不是针对记录加的锁，并且该索引不能失效，否则会从行锁升级为表锁。**
 
 **必须根据索引字段更新**
 
