@@ -1,4 +1,4 @@
-## MySQL安装
+## 1.MySQL安装
 
 ### 1. 准备一台Linux服务器
 
@@ -12,13 +12,11 @@ Linux的版本为 CentOS7;
 
 https://downloads.mysql.com/archives/community/
 
-![image-20211031230239760](https://tva1.sinaimg.cn/large/e6c9d24egy1h0nfodwok1j21ha0kdjw7.jpg) 
-
-
-
 ### 3. 上传MySQL安装包
 
-![image-20211031231930205](https://tva1.sinaimg.cn/large/e6c9d24egy1h0nfoibbqej21c40c10x3.jpg) 
+```shell
+pscp xxxx   root@192.168.1.1:/data
+```
 
 
 
@@ -138,7 +136,73 @@ mysql -u root -p
 
 
 
-### 12. 通过DataGrip远程连接MySQL
+## 2.MySQL卸载-Linux版
+
+### 1.停止MySQL服务
+
+```
+systemctl stop mysqld
+```
+
+
+
+### 2.查询MySQL的安装文件
+
+```
+rpm -qa | grep -i mysql
+```
+
+
+
+### 3.卸载上述查询出来的所有的MySQL安装包
+
+```
+rpm -e mysql-community-client-plugins-8.0.26-1.el7.x86_64 --nodeps
+
+rpm -e mysql-community-server-8.0.26-1.el7.x86_64 --nodeps
+
+rpm -e mysql-community-common-8.0.26-1.el7.x86_64 --nodeps
+
+rpm -e mysql-community-libs-8.0.26-1.el7.x86_64 --nodeps
+
+rpm -e mysql-community-client-8.0.26-1.el7.x86_64 --nodeps
+
+rpm -e mysql-community-libs-compat-8.0.26-1.el7.x86_64 --nodeps
+```
+
+删除MySQL的数据存放目录
+
+```
+rm -rf /var/lib/mysql/
+```
+
+删除MySQL的配置文件备份
+
+```
+rm -rf /etc/my.cnf.rpmsave
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
