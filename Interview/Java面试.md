@@ -468,6 +468,12 @@ Q是单向队列，D是双向队列
 
 #### 7.2.ArrayDeque 与 LinkedList 的区别
 
+底层：A属于数组+指针 L属于链表
+
+NULL：A不能存，但是L可以存空数据
+
+性能上：A做队列比L性能好一些
+
 
 
 #### 7.3.说一说 PriorityQueue
