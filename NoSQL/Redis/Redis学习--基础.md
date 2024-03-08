@@ -1064,7 +1064,7 @@ redis 乐观锁 通过使用watch 监控
 
 > jedis 是官方推荐的Java连接开发工具  **老的**
 >
-> jedis:采用直连  多个线程操作不安全 为了避免不安全 采用jedispool连接池  BIO模式
+> jedis：采用直连  多个线程操作不安全 为了避免不安全 采用jedispool连接池  BIO模式
 
 ```java
 public class RawJedisTest {
