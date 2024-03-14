@@ -1,6 +1,6 @@
 # 1、Spring学习
 
-> 源码地址：https://gitee.com/laihekele/spring-study
+
 
 1、了解预研究的组件（类）基本使用
 
@@ -159,8 +159,6 @@ public class Component2 {
 ## 第二节、容器的实现
 
 #### 1、BeanFactory实现的特点
-
-
 
 
 
@@ -421,7 +419,6 @@ public class A02Application {
         System.out.println(annotationConfigWebApplicationContext.getBean(Bean2.class).getBean1());
     }
 
-
     @Configuration
     static class Config {
         @Bean
@@ -436,8 +433,6 @@ public class A02Application {
             return bean2;
         }
     }
-
-
     static class Bean1 {
         public Bean1() {
             System.out.println("bean1 的构造方法");
@@ -445,7 +440,6 @@ public class A02Application {
     }
 
     static class Bean2 {
-
         private Bean1 bean1;
 
         public Bean2() {
@@ -460,7 +454,6 @@ public class A02Application {
             this.bean1 = bean1;
         }
     }
-
 }
 ```
 
@@ -545,8 +538,6 @@ public class A02Application {
         }
     }
 
-
-
     static class Bean1 {
         public Bean1() {
             System.out.println("bean1 的构造方法");
@@ -554,9 +545,7 @@ public class A02Application {
     }
 
     static class Bean2 {
-
         private Bean1 bean1;
-
         public Bean2() {
             System.out.println("bean2 的构造方法");
         }
@@ -776,8 +765,6 @@ public class TestMethodTemplate {
          */
         void inject();
     }
-
-
 }
 ```
 
@@ -1614,13 +1601,13 @@ public class Bean0008 implements DisposableBean {
 
 ### 1、Scope类型有哪些？
 
-| 类型                                    | 创建时机   | 销毁时机                         |
-| --------------------------------------- | ---------- | -------------------------------- |
-| Singleton（同一个对象）                 | 引用的时候 | Tomcat 关机                      |
-| prototype（从spring容器中，产生新对象） | 引用的时候 | TODO                             |
-| request（存在request域中）              | 每一次请求 | 每一次请求完成                   |
-| session（会话级别）                     | 浏览器请求 | 30分钟没有新请求 自动销毁        |
-| application（应用启动）                 | 应用启动   | 应该是应用关闭 emmm 但是实现不了 |
+| 类型                                    | 创建时机   | 销毁时机                                                     |
+| --------------------------------------- | ---------- | ------------------------------------------------------------ |
+| Singleton（同一个对象）                 | 引用的时候 | Tomcat 关机                                                  |
+| prototype（从spring容器中，产生新对象） | 引用的时候 | Spring只负责创建，不负责销毁周期的回调方法。销毁可能需要GC来处理这个bean对象 |
+| request（存在request域中）              | 每一次请求 | 每一次请求完成                                               |
+| session（会话级别）                     | 浏览器请求 | 30分钟没有新请求 自动销毁                                    |
+| application（应用启动）                 | 应用启动   | 应该是应用关闭 emmm 但是实现不了                             |
 
 ####  
 
@@ -1703,13 +1690,13 @@ public class BeanForSession {
 
 页面展示打印如下：
 
-![image-20230211174324621](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230211174324621.png)
+![image-20230211174324621](./img/1.png)
 
 再次刷新:
 
 > 发现只有request域的bean发现变化
 
-![image-20230211174409658](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230211174409658.png)
+![image-20230211174409658](./img/2.png)
 
 
 
@@ -1780,13 +1767,13 @@ public class F {
 
 对于单例对象来讲，依赖注入仅发生了一次，后续没有用到多例的F，因此E用的始终是第一次依赖注入的F
 
-![image-20230209221900444](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/image-20230209221900444.png)
+![image-20230209221900444](./img/4.png)
 
 ***解决办法：***
 
 1. **仍然使用@Lazy代理**
 
-![image-20230209222303730](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230209222303730.png)
+![image-20230209222303730](./img/3.png)
 
 演示：
 
@@ -2239,7 +2226,7 @@ public class A11Application {
 >
 > 指向自己的maven jar包目录
 
-![image-20230211232335575](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230211232335575.png)
+![image-20230211232335575](./img/5.png)
 
 输出结果：
 
@@ -2255,7 +2242,7 @@ MyService===bar
 >
 > 操作手册地址：https://arthas.aliyun.com/doc/quick-start.html
 
-![image-20230212120927947](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230212120927947.png)
+![image-20230212120927947](./img/6.png)
 
 
 
@@ -3189,7 +3176,7 @@ public class $Proxt0Dump implements Opcodes {
 
 上述代码解析：
 
-![image-20230227205909435](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/:Users:gaoshang:Library:Application Support:typora-user-images:image-20230227205909435.png)
+![image-20230227205909435](./img/7.png)
 
 
 
@@ -3287,14 +3274,6 @@ public class Test$Proxy0Dump {
 | 成员变量 | 类中，方法外部 | 有默认值   | 位于堆内存       | 方法进栈而存在，方法出栈而消失         |
 | 局部变量 | 方法内         | 无默认值   | 位于栈内存       | 对象创建而存在，对象被回收而消失       |
 | 静态变量 | 方法外部       | 具有默认值 | 位于方法的静态区 | 随着类的加载而加载，随着类的消失而消失 |
-
-
-
-
-
-
-
-
 
 
 
