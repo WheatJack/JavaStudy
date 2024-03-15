@@ -20,7 +20,7 @@
 
 **ConfigurationApplicationContext与BeanFactory的关系**
 
-![image-20220726210003693](https://tva1.sinaimg.cn/large/e6c9d24egy1h4kmmn6alxj21ww0hkdl6.jpg)
+![image-2022072621](./img/11.jpeg)
 
 ```java
 /*
@@ -32,7 +32,7 @@
 
 BeanFactory主要的实现类：**DefaultListableBeanFactory** 
 
-![image-20220726210826488](https://tva1.sinaimg.cn/large/e6c9d24egy1h4kmv8zurej21f90u0jy6.jpg)
+![image-20220726210826488](./img/12.jpeg)
 
 单例Bean注册类 **DefaultListableBeanFactory** 
 
@@ -78,7 +78,7 @@ BeanFactory主要的实现类：**DefaultListableBeanFactory**
 
 配置对应的Resources文件
 
-![image-20220727213802236](https://tva1.sinaimg.cn/large/e6c9d24egy1h4ltcelffgj20ue0a4wf7.jpg)
+![image-20220727213802236](./img/13.jpeg)
 
 ```java
 // 获取对应的翻译
@@ -916,7 +916,7 @@ public class DigInAutowired {
 
 > **可以看到 `InjectionMetadata` 拿到了测试类中所有使用@Autowired注解的变量和方法**
 
-![image-20220811225034177](https://tva1.sinaimg.cn/large/e6c9d24egy1h537qj7pcpj21a60ayjup.jpg)
+![image-20220811225034177](./img/14.jpeg)
 
 
 
@@ -1401,7 +1401,7 @@ Aware接口用于注入一些与容器相关的信息，例如
 
 **配置类@Autowired失效分析**
 
-![valf10](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/valf10.png)
+![valf10](./img/valf10.png)
 
 
 
@@ -1411,7 +1411,7 @@ Java配置类包含BeanFactoryPostProcessor的情况，因此要创建其中的B
 
 失败原因解释，因为新创建了Java配置类，先创建了配置，然后执行了初始化，然后在去执行后处理器，导致配置类里面的
 
-![image-20230206210603872](/Users/gaoshang/IdeaProjects/Java学习/Spring学习/img/owq9ly.png)
+![image-20230206210603872](./img/owq9ly.png)
 
 
 
