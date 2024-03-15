@@ -40,7 +40,7 @@ Topic:message	1:N		message:Topic	 1:1
 
 一个Topic的Queue中的消息只能被一个消费组中的一个消费者消费。一个Queue中的消息不允许同一个消费者中的多个消费者同时消费
 
-<img src="/Users/gaoshang/Library/Application Support/typora-user-images/image-20220502164235484.png" alt="image-20220502164235484" style="zoom: 75%;" />
+<img src="./img/1.png" alt="image-20220502164235484" style="zoom: 75%;" />
 
 
 
@@ -56,7 +56,7 @@ RocketMQ中每个消息拥有唯一的MessageId，且可以携带具有业务标
 
 ## 2、系统架构
 
-![image-20220502170033984](https://tva1.sinaimg.cn/large/e6c9d24egy1h1u615dfxoj20mb098mxn.jpg)
+![image-20220502170033984](./img/2.jpeg)
 
 
 
@@ -74,11 +74,11 @@ RocketMQ中的消息生产者都是以生产者组（Producer Group）的形式�
 
 RocketMq中的消息消费者都是以消费者组（Consumer Group的形式出现的）消费者是同一类消费者的集合，这类Consumer消费的是同一个Topic类型的消息。消费者组使得在消息消费方面，实现负载均衡（**对于Queue来说，不是对消息进行负载均衡**）和容错的目标变得非常容易。
 
-![image-20220502171820367](https://tva1.sinaimg.cn/large/e6c9d24egy1h1u6jmrvjqj20mc0923z8.jpg)
+![image-20220502171820367](./img/3.jpeg)
 
  消费者组中的Consumer的数量应该小于等于订阅Topic的Queue数量。如果超出Queue的数量，则多处的Consumer将不能消费信息。
 
-![image-20220502172023912](https://tva1.sinaimg.cn/large/e6c9d24egy1h1u6lrgx55j20m50aj3zh.jpg)
+![image-20220502172023912](./img/4.jpeg)
 
 不过，一个Topic类型的消息可以被多个消费者组同时消费
 
@@ -178,7 +178,7 @@ Broker充当着消息中转角色，负责存储消息、转发消息。Broker�
 
 功能示意图如下：
 
-![image-20220502211219380](https://tva1.sinaimg.cn/large/e6c9d24egy1h1udb4j0gbj20kz0bzweq.jpg)
+![image-20220502211219380](./img/5.jpeg)
 
  
 
@@ -413,7 +413,7 @@ java -jar rocketmq-console-ng-1.0.0.jar
 http://localhost:7000/#/
 ```
 
-![image-20220503233211356](https://tva1.sinaimg.cn/large/e6c9d24egy1h1vmz1yhxnj21hb0q3jtf.jpg)
+![image-20220503233211356](./img/6.jpeg)
 
 
 
@@ -485,7 +485,7 @@ Producer可以将消息写入到某Broker中的某Queue中，其经历如下过�
 
 RocketMQ中的消息存储在本地文件系统中，这些相关文件默认存储在当前用户主目录下的store目录下
 
-![image-20220504144842684](https://tva1.sinaimg.cn/large/e6c9d24egy1h1wdgkb41oj20s60a8wg8.jpg)
+![image-20220504144842684](./img/7.jpeg)
 
 | Abort（终止）    | 该文件在Broker启动后会自动创建，正常关闭Broker，该文件会自动消失。若没有启动Broker的情况下，发现这个文件是存在的，则说明之前的Broker的关闭时非正常关闭的。 |
 | ---------------- | ------------------------------------------------------------ |
@@ -524,7 +524,7 @@ commitlog目录中存放着很多mappedFile文件，当前Broker中的所有消�
 
 **消息单元**
 
-![image-20220504153212370](https://tva1.sinaimg.cn/large/e6c9d24egy1h1wepthrdqj20u70ayace.jpg)
+![image-20220504153212370](./img/8.jpeg)
 
 mappedFile文件内容由一个个的消息单元构成。每个消息单元中包含消息总长度MsgLen、消息的物理位置physicalOffset、消息体内容Body、消息体长度BodyLength、消息主题Topic、Topic长度TopicLength、消息生产者BornHost、消息发送时间戳BornTimestamp、消息所在的队列QueueId、消息在Queue中存储的偏移量QueueOffset等近20余项消息相关属性。
 
@@ -538,7 +538,7 @@ mappedFile文件内容由一个个的消息单元构成。每个消息单元中�
 
 #### **consumequeue**
 
-![image-20220504201912417](https://tva1.sinaimg.cn/large/e6c9d24egy1h1wn0fsof7j20uy0ic781.jpg)
+![image-20220504201912417](./img/9.jpeg)
 
 
 
@@ -546,7 +546,7 @@ mappedFile文件内容由一个个的消息单元构成。每个消息单元中�
 
 **索引条目**
 
-![image-20220504201433769](https://tva1.sinaimg.cn/large/e6c9d24egy1h1wmvnlgldj20bb05rdfv.jpg)
+![image-20220504201433769](./img/1o.jpeg)
 
 每个consumequeue文件可以包含30w个索引条目，每个索引条目包含了三个消息重要属性：消息在mappedFile文件中的偏移量CommitLog Offset、消息长度、消息Tag的hashcode值。这个三个属性占20个字节，所以每个文件的大小是固定的30W*20字节
 
@@ -556,7 +556,7 @@ mappedFile文件内容由一个个的消息单元构成。每个消息单元中�
 
 #### 对文件的读写
 
-![image-20220504202134564](https://tva1.sinaimg.cn/large/e6c9d24egy1h1wn2wokb6j20mb0c6q3n.jpg)
+![image-20220504202134564](./img/11.jpeg)
 
 
 
@@ -625,11 +625,11 @@ RockerMQ中可能会影响性能的是对commitlog文件的读取。因为对com
 
 每个Broker中会包含一组indexFile，每个indexFile都是以一个时间戳命名的（这个indexFile被创建的时间戳）。每个indexFile文件由三部分组成：**indexHeader、slots槽位、indexes索引数据**。每个IndexFile文件中包含500万个slot槽位。而每个slot槽又可能会挂载很多的index单元。
 
-![image-20220604161123270](https://tva1.sinaimg.cn/large/e6c9d24egy1h2wlawf368j20mq08qwel.jpg)
+![image-20220604161123270](./img/12.jpeg)
 
 indexHeader 固定40个字节，其中存放着如下数据：
 
-![image-20220604161433565](https://tva1.sinaimg.cn/large/e6c9d24egy1h2wlatyljxj216u09yq3o.jpg)
+![image-20220604161433565](./img/13.jpeg)
 
 * beginTimestamp：该indexFile中第一条消息的存储时间
 * endTimestamp：该indexFile中最后一条消息存储时间
@@ -640,7 +640,7 @@ indexHeader 固定40个字节，其中存放着如下数据：
 
 indexFile中最复杂的是Slots和indexes之间的关系。在实际存储时，Indexes是在slots后面的，但为了便于理解，将他们的关系展示为如下形式：
 
-![image-20220604161741514](https://tva1.sinaimg.cn/large/e6c9d24egy1h2wlas60kej21960tw0v7.jpg)
+![image-20220604161741514](./img/14.jpeg)
 
 
 
@@ -650,7 +650,7 @@ indexFile中最复杂的是Slots和indexes之间的关系。在实际存储时�
 
 
 
-![image-20220604162134378](https://tva1.sinaimg.cn/large/e6c9d24egy1h2wlarda7cj210e0a8mxl.jpg)
+![image-20220604162134378](./img/15.jpeg)
 
 * keyHash：消息中指定的业务key的hash值
 * phyOffset：当前key对应的消息在commitlog中的偏移量commitlog offset
@@ -699,7 +699,7 @@ index（m）位置 = 40+ 500w*4 + (m-1)*20
 
 具体查询流程如下：
 
-![image-20220604230236694](https://tva1.sinaimg.cn/large/e6c9d24egy1h2wly483oxj20tp0h30ub.jpg)
+![image-20220604230236694](./img/16.jpeg)
 
 
 
@@ -736,13 +736,13 @@ Consumer主动从Broker中拉取消息，主动权由Consumer控制。一单获�
 
 > 广播消费模式下，相同Consumer Group的每个Consumer实例都接收到同一个Topic的全量消息。即每条消息都会被发送到Consumer Group中的**每个Consumer。**
 
-![image-20220605135342695](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605135342695.png)
+![image-20220605135342695](./img/17.png)
 
 ##### 集群消费
 
 > 集群消费模式下，相同Consumer Group的每个Consumer实例平均分摊同一个Topic的消息。即每条消息只会被发送到到Consumer Group中的**某个Consumer。**
 
-![image-20220605135605751](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605135605751.png)
+![image-20220605135605751](./img/18.png)
 
 
 
@@ -759,7 +759,7 @@ Consumer主动从Broker中拉取消息，主动权由Consumer控制。一单获�
 
 Rebalance 即再均衡，指的是，将一个Topic下的多个Queue在同一个Consumer Group中的多个Consumer间进行重新分配的过程。
 
-![image-20220605140815614](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605140815614.png)
+![image-20220605140815614](./img/19.png)
 
 Rebalance机制的本意是为了**提升消息的并行消费能力**。例如，一个Topic下5个队列，在只有1个消费者的情况下，这个消费者将负责消费这5个队列的消息。如果此时我们增加了一个消费者，那么就可以给其中一个消费者分配2个队列，给另一个分配3个队列，从而提升消息的并行消费能力。
 
@@ -845,7 +845,7 @@ Kafka的Rebalance是由Consumer Leader完成的。而RocketMQ中的Rebalance是�
 
 ##### 平均分配策略
 
-![image-20220605151811080](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xe9cpk93j20gr0c9mxw.jpg)
+![image-20220605151811080](./img/20.jpeg)
 
 该算法是要根据avg = QueueCount / ConsumerCount 的计算结果进行分配的。如果能够整除，则按顺序将avg个Queue逐个分配Consumer；如果不能整除，则将多余的Queue按照Consumer顺序逐个分配。
 
@@ -857,7 +857,7 @@ Kafka的Rebalance是由Consumer Leader完成的。而RocketMQ中的Rebalance是�
 
 ##### 环形平均策略
 
-![image-20220605151947163](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xe9agl0xj20mu0jjq3q.jpg)
+![image-20220605151947163](./img/21.jpeg)
 
 环形平均算法是指，根据消费者的顺序，依次在由Queue队列组成的环形图中逐个分配。
 
@@ -867,7 +867,7 @@ Kafka的Rebalance是由Consumer Leader完成的。而RocketMQ中的Rebalance是�
 
 ##### 一致性hash策略
 
-![image-20220605152233097](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xe9pap65j20id0h90tb.jpg)
+![image-20220605152233097](./img/22.jpeg)
 
 该算法会将consumer的hash值作为Node节点存放到hash环上，然后将queue的hash值也放到hahs环上，通过**顺时针**方向，距离queue最近的那个consumer就是该queue要分配的consumer。
 
@@ -879,7 +879,7 @@ Kafka的Rebalance是由Consumer Leader完成的。而RocketMQ中的Rebalance是�
 
 ##### 同机房策略
 
-![image-20220605152458453](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xec8epmvj20ny0dljst.jpg)
+![image-20220605152458453](./img/23.jpeg)
 
 该算法会根据queue的部署机房位置和consumer的位置，过滤出当前consumer相同机房的queue。然后按照拼接分配策略或环形平均策略对机房queue进行分配。如果没有同机房queue，则按照平均分配策略或环形平均策略对所有queue进行分配。
 
@@ -895,9 +895,9 @@ Kafka的Rebalance是由Consumer Leader完成的。而RocketMQ中的Rebalance是�
 
 可以有效减少由于消费者组扩容或缩容所带来的大量的Rebalance。
 
-![image-20220605153737940](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xepdysn9j211v0fsdht.jpg)
+![image-20220605153737940](./img/24.jpeg)
 
-![image-20220605153723019](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xep3wh3dj20xt0ibgmz.jpg)
+![image-202206723019](./img/25.jpeg)
 
 
 
@@ -931,7 +931,7 @@ RocketMQ有一个原则：每条消息必须要被**成功消费**一次
 
 订阅关系保持一致
 
-![image-20220605161535159](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xfsy4f45j20j30g0gm8.jpg)
+![image-20220605161535159](./img/26.jpeg)
 
 
 
@@ -939,7 +939,7 @@ RocketMQ有一个原则：每条消息必须要被**成功消费**一次
 
 订阅关系没有保持一致
 
-![image-20220605161629250](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605161629250.png)
+![image-20220605161629250](./img/27.png)
 
 
 
