@@ -1050,7 +1050,7 @@ public enum ConsumeFromWhere {
 
 #### 重试队列
 
-![image-20220605202607829](https://tva1.sinaimg.cn/large/e6c9d24egy1h2xn1id9akj20ty0jqacv.jpg)
+![image-20220605202607829](./img/28.jpeg)
 
 当RocketMQ对消息的消费出现异常时，会将发生异常的消息的Offset提交到Broker中的重试队列。系统在发生消息消费异常时会为当前的Topic@group创建一个重试队列，该队列以%RETRY%开头，到达重试时间后进行消费重试。
 
@@ -1110,9 +1110,9 @@ public enum ConsumeFromWhere {
 
 
 
-![image-20220605212501862](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605212501862.png)
+![image-20220605212501862](./img/29.png)
 
-![image-20220605212912675](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605212912675.png)
+![image-20220605212912675](./img/30.png)
 
 
 
@@ -1120,11 +1120,11 @@ public enum ConsumeFromWhere {
 
 
 
-![image-20220605213318047](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605213318047.png)
+![image-20220605213318047](./img/31.png)
 
 
 
-![image-20220605213412852](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605213412852.png) 
+![image-20220605213412852](./img/32.png) 
 
 
 
@@ -1147,7 +1147,7 @@ public enum ConsumeFromWhere {
 
 #### 产生原因分析
 
-![image-20220605214101535](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220605214101535.png)
+![image-20220605214101535](./img/33.png)
 
 
 
@@ -1287,13 +1287,13 @@ Producer对于消息的发送方式也有多种选择，不同的方式会产生
 
 同步发送消息是指，Producer发出一条消息后，会在收到MQ返回的ACK之后才发下一条消息。该方式的消息可靠性最高，但消息的发送效率太低。
 
-![image-20220504210654073](https://tva1.sinaimg.cn/large/e6c9d24egy1h1woe1vludj20es0ah74l.jpg)
+![image-20220504210654073](./img/34.jpeg)
 
 ##### 异步发送消息
 
 异步发送消息是指，Producer发出消息后无需等待MQ返回ACK，直接发送下一条消息。该方式的消息可靠性得到保障，消息发送效率也可以。
 
-![image-20220504210813284](https://tva1.sinaimg.cn/large/e6c9d24egy1h1wofg41gcj20gf0bhdg9.jpg)
+![image-20220504210813284](./img/35.jpeg)
 
 
 
@@ -1301,7 +1301,7 @@ Producer对于消息的发送方式也有多种选择，不同的方式会产生
 
 单向发送消息是指，Prodcuer仅负责发送消息，不等待、不处理MQ的ACK，该发送方式时MQ也不返回ACK。该方式的消息发送效率最高，但是消息可靠性差。
 
-![image-20220504210920264](https://tva1.sinaimg.cn/large/e6c9d24egy1h1wogladqnj20gv0c1mxe.jpg)
+![image-20220504210920264](./img/36.jpeg)
 
 
 
@@ -1319,7 +1319,7 @@ Producer对于消息的发送方式也有多种选择，不同的方式会产生
 
 下面用订单进行分区有序的示例。一个订单的顺序流程是：创建、付款、推送、完成。订单号相同的消息会被先后发送到同一个队列中，消费时，同一个**OrderId**获取到的肯定是同一个队列。
 
-![image-20220522115606894](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h1mnu6xdj20mq09rwf9.jpg)
+![image-20220522115606894](./img/37.jpeg)
 
   
 
@@ -1339,7 +1339,7 @@ Producer对于消息的发送方式也有多种选择，不同的方式会产生
 >2) 在RocketMQ可视化控制台中手动创建Topic时，指定Queue数量
 >3) 使用mqAdmin命令手动创建Topic时指定Queue数量
 
-![image-20220522115955379](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h1qif2h2j20jn07fmx9.jpg)
+![image-20220522115955379](./img/38.jpeg)
 
 ##### 分区有序
 
@@ -1361,7 +1361,7 @@ Producer对于消息的发送方式也有多种选择，不同的方式会产生
 
 
 
-![image-20220522120439961](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h1vhy7vgj20lv0a5aak.jpg)
+![image-20220522120439961](./img/39.jpeg)
 
 
 
@@ -1393,13 +1393,13 @@ private String messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m
 
 当然如果需要自定义的延时等级，可以通过在broker加载的配置中新增如下配置（例如下面增加了一天这个等级）。配置文件在RocketMQ安装目录下的conf目录中。
 
-![image-20220522151823081](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h7h0bu3ij20lv01gjre.jpg)
+![image-20220522151823081](./img/40.jpeg)
 
 
 
 #### 延时消息实现原理
 
- ![image-20220522152046407](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h7jhxbdnj20mn0d6mxz.jpg)
+ ![image-20220522152046407](./img/41.jpeg)
 
 
 
@@ -1407,7 +1407,7 @@ private String messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m
 
 ##### 修改消息
 
-![image-20220522154411639](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h87w5a24j20cq0fagmc.jpg)
+![image-20220522154411639](./img/42.jpeg)
 
 Producer将消息发送到Broker后，Broker会首先将消息写入到commitlog文件中，然后需要将其分发到相应的consumerQueue中。不过，在分发之前，系统会判断消息是否带有延时等级，若没有，则直接正常分发；若有，则需要经历一个复杂的过程：
 
@@ -1421,7 +1421,7 @@ Producer将消息发送到Broker后，Broker会首先将消息写入到commitlog
   >
   >需要注意，在创建queueId目录时，并不是一次性将所有延迟等级对应的目录全部创建完毕，而是用到哪个延迟等级就创建哪个目录
 
-![image-20220522160210749](https://tva1.sinaimg.cn/large/e6c9d24egy1h2h8qkjl27j20jc03faa8.jpg)
+![image-20220522160210749](./img/43.jpeg)
 
 * 修改消息索引单元内容。索引单元中的**Message Tag HashCode**部分原本存放的是消息的Tag的Hash值。现修改为消息的**投递时间**。投递时间是指该消息被重新修改为原Topic后再次被写入到commitLog中的时间。***投递时间=消息存储时间+延迟等级时间***。消息存储时间指的是消息被发送到Broker时的时间戳。
 
@@ -1459,9 +1459,9 @@ Broker内部有一个延迟消息服务类ScheduleMessageService，其会消费S
 
 > 需求场景：工行用户A向建行用户B转账1万元
 
-![image-20220522180212238](https://tva1.sinaimg.cn/large/e6c9d24egy1h2hc7ige22j20k507x3yo.jpg)
+![image-20220522180212238](./img/44.jpeg)
 
- ![image-20220522180339518](/Users/gaoshang/Library/Application Support/typora-user-images/image-20220522180339518.png)
+ ![image-20220522180339518](./img/45.png)
 
 1) 工行系统发送一个给B增款1万元的同步消息M给Broker
 
@@ -1485,7 +1485,7 @@ Broker内部有一个延迟消息服务类ScheduleMessageService，其会消费S
 
 
 
-![image-20220522210944625](https://tva1.sinaimg.cn/large/e6c9d24egy1h2hhmr2dumj20ft0em753.jpg)
+![image-20220522210944625](./img/46.jpeg)
 
 **使用事务消息来处理该需求场景：**
 
@@ -1584,7 +1584,7 @@ public enum LocalTransactionState {
 
 ##### 消息回查
 
-![image-20220522215749077](https://tva1.sinaimg.cn/large/e6c9d24egy1h2hj0o9c96j20pf0k7jse.jpg)
+![image-20220522215749077](./img/47.jpeg)
 
 
 
@@ -1655,7 +1655,7 @@ Producer及Broker 均是RM
 
 #### XA模式架构
 
-![image-20220523230225634](https://tva1.sinaimg.cn/large/e6c9d24egy1h2iqi7csutj20ix0dpjsi.jpg)
+![image-20220523230225634](./img/48.jpeg)
 
  XA是一个典型2PC，其执行原理如下：
 
@@ -1719,7 +1719,7 @@ Producer及Broker 均是RM
 
 ##### 生产者发送的消息大小
 
-![image-20220529124756034](https://tva1.sinaimg.cn/large/e6c9d24egy1h2p6gmxtpxj20ew05yq2x.jpg)
+![image-20220529124756034](./img/49.jpeg)
 
 生产者听过send()方法发送的Message，并不是直接将Message序列化后发送到网络上的，而是通过这个Message生成了一个字符串发送出去的。这个字符串由四部分构成：topic、消息Body、消息日志（占20字节），及用于描述消息的一堆属性key-value。这些属性中包含例如生产者地址、生产时间、要发送的QueueId等。最终写入到Broker中消息单元中的消息数据都是来自于这些属性的。
 
