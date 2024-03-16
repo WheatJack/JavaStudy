@@ -707,7 +707,9 @@ index（m）位置 = 40+ 500w*4 + (m-1)*20
 
 ### 四、消息的消费
 
-消费者从Broker中获取消息的方式有两种：pull拉取方式和朴实推动方式。消费者组对于消息消费的模式又分为两种：集群消费Clustering和广播消费Broadcasting
+消费者从Broker中获取消息的方式有两种：**pull拉取方式**和**push推动方式**。
+
+消费者组对于消息消费的模式又分为两种：**集群消费Clustering**和**广播消费Broadcasting**
 
 
 
@@ -717,13 +719,13 @@ index（m）位置 = 40+ 500w*4 + (m-1)*20
 
 Consumer主动从Broker中拉取消息，主动权由Consumer控制。一单获取了批量消息，就会启动消费过程。不过，该方式的实时性较弱，即Broker中有了新的消息时消费者并不能及时发现并消费。
 
-> 由于拉取时间间隔是由用户指定，所以在设置间隔时需要注意平稳：间隔太短，空请求比例会增加；间隔太长，消息的实时性太差
+> 由于拉取时间间隔是由用户指定，所以在设置间隔时需要注意平稳：**间隔太短，空请求比例会增加；间隔太长，消息的实时性太差**
 
 **推送式消费**
 
 该模式下Broker收到数据后会主动推送给Consumer。该获取方式一般实时性较高。
 
-该获取方式是典型的 发布-订阅 模式，即Consumer向其关联的Queue注册了监听器，一旦发现有新的消息到来就会触发回调的执行，回调方法是Consumer去Queue中拉取消息。而这些都是基于Consumer与Broker间的长连接的。长连接的维护是需要消耗系统资源的。
+该获取方式是典型的**发布-订阅**模式，即Consumer向其关联的Queue注册了监听器，一旦发现有新的消息到来就会触发回调的执行，回调方法是Consumer去Queue中拉取消息。而这些都是基于Consumer与Broker间的长连接的。长连接的维护是需要消耗系统资源的。
 
 **对比**
 
@@ -744,6 +746,10 @@ Consumer主动从Broker中拉取消息，主动权由Consumer控制。一单获�
 
 > 集群消费模式下，相同Consumer Group的每个Consumer实例平均分摊同一个Topic的消息。即每条消息只会被发送到到Consumer Group中的**某个Consumer。**
 
+```
+RocketMQ 的默认消息消费方式是集群消费 (Clustering)。
+```
+
 ![image-20220605135605751](./img/18.png)
 
 
@@ -751,7 +757,7 @@ Consumer主动从Broker中拉取消息，主动权由Consumer控制。一单获�
 ##### 消息进度保存
 
 *  广播模式：消费进度保存在consumer端。因为广播模式下 consumer group 中每个consumer 都会消费所有消息，但它们的消费进度是不同。所以consumer各自保存各自的消费进度。
-* 集群模式：消费进度保存在broker中。consumer group中的所有consumer共同消费同一个Topic中的消息，同一条消息只会被消费一次。消费进度会参与到了消费的负载均衡中，故消费进度是需要共享的。
+* 集群模式：消费进度保存在broker中。consumer group中的所有consumer共同消费同一个Topic中的消息，**同一条消息只会被消费一次**。消费进度会参与到了消费的负载均衡中，故消费进度是需要共享的。
 
 
 
@@ -1054,7 +1060,7 @@ public enum ConsumeFromWhere {
 
 ![image-20220605202607829](./img/28.jpeg)
 
-当RocketMQ对消息的消费出现异常时，会将发生异常的消息的Offset提交到Broker中的重试队列。系统在发生消息消费异常时会为当前的Topic@group创建一个重试队列，该队列以%RETRY%开头，到达重试时间后进行消费重试。
+当RocketMQ对消息的消费出现异常时，会将发生异常的消息的Offset提交到Broker中的重试队列。系统在发生消息消费异常时会为当前的**Topic@group创建一个重试队列**，该队列以**%RETRY%**开头，到达重试时间后进行消费重试。
 
 
 
@@ -1110,25 +1116,61 @@ public enum ConsumeFromWhere {
 * 幂等令牌：是生产者和消费者两者中的既定协议，通常指具备唯一业务表示的字符串。例如，订单号、流水号。一般由Producer随着消息一同发送来的。
 * 唯一性处理：服务端通过采用一定的算法策略，保证同一个业务逻辑不会被重复执行成功多次。例如，对同一笔订单的多次支付操作，只会成功一次。
 
+解决方案：
+
+```
+对于常见的系统，幂等性操作的通用性解决方案是:
+1.首先通过缓存去重。在缓存中如果已经存在了某幂等令牌，则说明本次操作是重复性操作;若缓存没有命中，则进入下一步。
+2.在唯一性处理之前，先在数据库中查询幂等令牌作为索引的数据是否存在。若存在，则说明本次操作为重复性操作;若不存在，则进入下一步。
+3.在同一事务中完成三项操作:唯一性处理后，将幂等令牌写入到缓存，并将幂等令牌作为唯一索引的数据写入到DB中。
+	第1步已经判断过是否是重复性操作了，为什么第2步还要再次判断?能够进入第2步，说明已经不是重复操作了，第2次判断是否重复?
+	当然不重复。一般缓存中的数据是具有有效期的。缓存中数据的有效期一旦过期，就是发生缓存穿透，使请求直接就到达了DBMS。
+```
 
 
-![image-20220605212501862](./img/29.png)
 
-![image-20220605212912675](./img/30.png)
+解决方案举例子：
+
+```
+以支付场景为例:
+1.当支付请求到达后，首先在Redis缓存中却获取key为支付流水号的缓存value。若value不空，则说明本次支付是重复操作，业务系统直接返回调用侧重复支付标识;若value为空，则进入下一步操作
+2.到DBMS中根据支付流水号查询是否存在相应实例。若存在，则说明本次支付是重复操作，业务系统直接返回调用侧重复支付标识;若不存在，则说明本次操作是首次操作，进入下一步完成唯一性处理
+3.在分布式事务中完成三项操作:
+	·完成支付任务
+	·将当前支付流水号作为key，任意字符串作为value，通过set(key,value,expireTime)将数据写入到Redis缓存
+	·将当前支付流水号作为主键，与其它相关数据共同写入到DBMS
+```
+
+
 
 
 
 #### 消息幂等的实现
 
+```java
+消费幂等的解决方案很简单:为消息指定不会重复的唯一标识。因为Message "D有可能出现重复的情况所以真正安全的幂等处理，不建议以Message D作为处理依据。最好的方式是以业务唯一标识作为幂等处理的关键依据，而业务的唯一标识可以通过消息Key设置。
+以支付场景为例，可以将消息的Key设置为订单号，作为幂等处理的依据。具体代码示例如下:
+
+Message message =new Message();
+message.setKey("ORDERID_100");
+SendResult sendResult = producer.send(message);
+```
 
 
-![image-20220605213318047](./img/31.png)
 
+消费者收到消息时可以根据消息的Key即订单号来实现消费幂等
 
-
-![image-20220605213412852](./img/32.png) 
-
-
+```java
+consumer.registerMessageListener(new MessageListenerconcurrently(){
+@override
+public consumeconcurrentlystatus consumeMessage(List<essageExt> msgs,Consumeconcurrentlycontext context){
+for(MessageExt msg:msgs){
+string key = msg.getkeys();
+// 根据业务唯一标识Key做幂等处理
+}
+return consumeconcurrentlystatus.CONSUME_SUCCESS;}
+});
+```
 
 > RocketMQ能够保证消息不丢失，但不能保证消息不重复。
 
