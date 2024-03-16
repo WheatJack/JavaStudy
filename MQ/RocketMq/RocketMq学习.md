@@ -22,7 +22,9 @@
 
 Topic表示一类消息的集合，每个主题包含了若干消息，每条消息只能属于一个主题，是RocketMq进行消息订阅的基本单位。
 
-Topic:message	1:N		message:Topic	 1:1
+Topic:message	1:N		
+
+message:Topic	 1:1
 
 一个生产者可以同时发送多种Topic 的消息；而消费者只能对某种特定的Topic感兴趣，即只可以订阅和消费一种Topic的消息
 
@@ -46,7 +48,7 @@ Topic:message	1:N		message:Topic	 1:1
 
 ### 消息标识 MessageId/Key
 
-RocketMQ中每个消息拥有唯一的MessageId，且可以携带具有业务标识的Key，以方便对消息的查询。不过需要注意的是，MessageId有两个：在生产者send() 消息时会自动生成一个MessageId（msgId），都消息到达Broker后，Broker也会自动生成一个MessageId（offsetMsgId）。MsgId、offsetMsgId与Key都称为消息标识。
+RocketMQ中每个消息拥有唯一的MessageId，且可以携带具有业务标识的Key，以方便对消息的查询。不过需要注意的是，MessageId有两个：在生产者send() 消息时会自动生成一个MessageId（msgId），都消息到达Broker后，Broker也会自动生成一个MessageId（**offsetMsgId**）。MsgId、offsetMsgId与Key都称为消息标识。
 
 * **msgId**：由producer端生成，其生成规则为：producerIp + 进程pid + MessageClientIdSetter类的calssLoader的hashcode + 当前时间 + AutonomicIntger自增计数器
 * **offsetMsgId**：由broker端生成，其生成规则为：brokerIp+物理分区的offset（Queue中的偏移量）
@@ -62,7 +64,7 @@ RocketMQ中每个消息拥有唯一的MessageId，且可以携带具有业务标
 
 ### Producer
 
-消息生产者，负责生产消息。producer通过MQ的负载均衡模块选择相应的Broker集群队列中进行消息投递，投递的过程支持快速失败并且低延迟。
+消息生产者，负责生产消息。producer通过MQ的**负载均衡模块**选择相应的Broker集群队列中进行消息投递，投递的过程支持快速失败并且低延迟。
 
 RocketMQ中的消息生产者都是以生产者组（Producer Group）的形式出现的。生产者组是同一类生产者的集合，这类Producer发送相同的Topic类型的消息，一个生产者组可以同时发送多个主题的消息。
 
@@ -72,7 +74,7 @@ RocketMQ中的消息生产者都是以生产者组（Producer Group）的形式�
 
 消息消费者，负责消费消息。一个消息消费者会从Broker服务器中获取到消息，并对消息进行相关业务处理。
 
-RocketMq中的消息消费者都是以消费者组（Consumer Group的形式出现的）消费者是同一类消费者的集合，这类Consumer消费的是同一个Topic类型的消息。消费者组使得在消息消费方面，实现负载均衡（**对于Queue来说，不是对消息进行负载均衡**）和容错的目标变得非常容易。
+RocketMq中的消息消费者都是以消费者组（**Consumer Group**的形式出现的）消费者是同一类消费者的集合，这类Consumer消费的是同一个Topic类型的消息。消费者组使得在消息消费方面，实现负载均衡（**对于Queue来说，不是对消息进行负载均衡**）和容错的目标变得非常容易。
 
 ![image-20220502171820367](./img/3.jpeg)
 
@@ -82,9 +84,9 @@ RocketMq中的消息消费者都是以消费者组（Consumer Group的形式出�
 
 不过，一个Topic类型的消息可以被多个消费者组同时消费
 
->1）**消费者组只能消费一个Topic的消息，不能同时消费多个Topic消息**
+>**消费者组只能消费一个Topic的消息，不能同时消费多个Topic消息**
 >
->2）**一个消费者组中的消费者必须订阅完全相同的Topic**
+>**一个消费者组中的消费者必须订阅完全相同的Topic**
 
 
 
@@ -456,7 +458,7 @@ Producer可以将消息写入到某Broker中的某Queue中，其经历如下过�
 * Producer发送消息之前，会先向NameServer发出获取消息Topic的**路由信息的**请求
 * NameServer返回该Topic的**路由表**及**Broker列表**
 * Producer根据代码中指定的Queue选择策略，从Queue列表中选择一个队列，用于后续存储消息
-* Producer对消息做一些特殊处理，例如消息本身超过4M，会对其进行压缩
+* Producer对消息做一些特殊处理，例如**消息本身超过4M，会对其进行压缩**
 * Producer向选择出的Queue所在的Broker发出RPC请求，将消息发送到选择出的Queue
 
 >路由表：实际是一个Map，Key为Topic名称，value是一个QueueData实例列表。QueueData并不是一个Queue对应一个QueueData，而是一个Broker中该Topic的所有Queue对应一个QueueData。即，只要涉及到该Topic的Broker，一个Broker对应一个QueueData。QueueData包含brokerName。简单来说，路由表的key为Topic的名称，value则为所有涉及到该Topic到BrokerName列表
@@ -602,9 +604,9 @@ RocketMq中，无论是消息本身还是消息索引，都是存储在磁盘上
 
 首先，RocketMQ对文件的读写操作是通过**mmap零拷贝**进行的，将其对文件的操作转化为直接对内存地址进行操作，从而极大地提高了文件的读写效率。
 
-其次，consumequeue中的数据顺序存放的，还引入了PageCache的预读取机制，使得对consumequeue文件的读取几乎接近内存读取，即时在有消息堆积情况下也不会影响性能。
+其次，consumequeue中的数据顺序存放的，还引入了**PageCache**的预读取机制，使得对consumequeue文件的读取几乎接近内存读取，即时在有消息堆积情况下也不会影响性能。
 
->PageCache机制，页缓存机制，是OS对文件的缓存机制，用于加速对文件的读写操作。一般来说，程序对文件进行顺序读写的速度几乎接近于内存读写速度，主要原因是由于OS使用PageCache机制对读写访问操作进行性能优化，将一部分的内存用做PageCache。
+>**PageCache机制，页缓存机制，是OS对文件的缓存机制，用于加速对文件的读写操作**。一般来说，程序对文件进行顺序读写的速度几乎接近于内存读写速度，主要原因是由于OS使用PageCache机制对读写访问操作进行性能优化，将一部分的内存用做PageCache。
 >
 >* 写操作：OS会将数据写入到PageCache中，随后会以异步方式由pdflush （page dirty flush） 内核线程将Cache中的数据刷盘到物理磁盘
 >* 读操作：若用户要读取数据，其首先会从PageCache中读取，若没有命中，则OS在物理磁盘上加载该数据到PageCache的同时，也会顺序对其相邻数据块中的数据进行预读取。
