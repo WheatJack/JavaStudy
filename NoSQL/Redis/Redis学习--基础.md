@@ -877,13 +877,13 @@ OK
 >
 > [官网命令地址](http://www.redis.cn/commands/pfmerge.html)
 
-可以顺带学一下布隆过滤器 
+**什么是布隆过滤器**：
 
-A{1,3,5,7,8,7}
-
-A{1,3,5,7,8,}
-
-什么是基数：集合内不重复的元素 =5 可以接受误差
+- 布隆过滤器是由 Burton Howard Bloom 于 1970 年提出的，它是一种 space efficient 的概率型数据结构，用于判断一个元素是否在集合中。
+- 布隆过滤器的特点是：
+  - 当布隆过滤器判断某个 key 存在时，这个数据可能不存在；**当判断不存在时，那么这个数据一定不存在。**
+  - 布隆过滤器可以插入元素，**但不可以删除已有元素**。
+  - 其中的元素越多，false positive rate（误报率）越大，但是 false negative（漏报）是不可能的。
 
 ```bash
 # 添加参数 唯一对象的基数
@@ -914,16 +914,80 @@ OK
 (integer) 12
 ```
 
-Hyperloglog  占用的内存是固定 2^64 不同的元素的技术 只需要12kb内存 如果要从内存角度来比较的话 hyperloglog首选
+Hyperloglog  占用的内存是跟预期的元素数量有关，不同的元素的占用的数量不一样
 
 传统的方式 set保存用户的id 然后可以统计set中的元素的数量做为标准  这个方式如果保存了大量的用户id 会占用很多内存
 
 ### 常见用途
 
 - 网页的UV 一个人访问一个网站多次 还是算作一个人
-- 0.81% 的错误率  统计UV任务 可以忽略不计
+- 布隆过滤器（Bloom Filter）是一种用于判断元素是否存在于集合中的数据结构，它在缓存穿透等场景中非常有用
+- 解决 Redis 缓存穿透问题。
+- 邮件过滤，使用布隆过滤器实现邮件黑名单过滤。
+- 爬虫爬过的网站过滤，爬过的网站不再爬取。
+- 推荐过的新闻不再推荐。
 
-### 底层原理TODO
+### 底层原理
+
+- **布隆过滤器的工作原理**：
+  - 布隆过滤器使用一个 bit 数组，初始值全部设为 0。
+  - 加入元素时，采用 k 个相互独立的 Hash 函数计算，然后将元素 Hash 映射的 K 个位置全部设置为 1。
+  - 检测 key 是否存在时，仍然用这 k 个 Hash 函数计算出 k 个位置，如果位置全部为 1，则表明 key 存在，否则不存在。
+
+- **误判率和空间复杂度**：
+  - 哈希函数会出现碰撞，所以布隆过滤器会存在误判。
+  - 误判率是指，布隆过滤器判断某个 key 存在，但实际不存在的概率。
+  - 布隆过滤器的空间复杂度远低于哈希表。
+
+布隆过滤器是一种高效的数据结构，能够在节省内存的同时解决去重问题。在实际开发中，根据需求合理使用布隆过滤器，可以有效提高系统性能和资源利用率
+
+```
+根据预期值1亿和容错率0.003，Redisson会去计算对应需要多个和hash算法（8个），还有最终的size数据 1亿两千万
+```
+
+![image-20240317161540925](./img/5.png)
+
+### 实战代码
+
+```java
+public class RedisController {
+    @Autowired
+    private RedisTemplate redisTemplate;
+
+    @Resource
+    private RedissonClient redissonClient;
+
+    @GetMapping("/getAll")
+    public String getAll() {
+        System.out.println("start");
+        redisTemplate.opsForHyperLogLog().add("key", "111");
+        RBloomFilter<Object> bloomFilter = redissonClient.getBloomFilter("key");
+        // hash函数的个数，容错率越低hash函数的个数越多；
+        // 数据一旦超过预定容量，错误率就会急剧上升； 总的capacity为1亿，容错率为千分之三
+        bloomFilter.tryInit(10000000, 0.003);
+        for (int i = 0; i < 10000000; i++) {
+            bloomFilter.add(UUID.randomUUID().toString());
+        }
+        for (int i = 0; i < 10; i++) {
+            String uuid = UUID.randomUUID().toString();
+            boolean contains = bloomFilter.contains(uuid);
+            System.out.println(uuid + ":是否存在：" + contains);
+            if (!contains) {
+                bloomFilter.add(uuid);
+            }
+        }
+        System.out.println("'测试 1'是否存在：" + bloomFilter.contains("71a11ecc-7e71-41da-a202-df9dead16b2e"));
+        System.out.println("'测试 2'是否存在：" + bloomFilter.contains("0f59c2fc-aebc-4185-8014-1d34c95f6ff4"));
+        System.out.println("预计插入数量：" + bloomFilter.getExpectedInsertions());
+        System.out.println("容错率：" + bloomFilter.getFalseProbability());
+        System.out.println("hash函数的个数：" + bloomFilter.getHashIterations());
+        System.out.println("size：" + bloomFilter.sizeInMemory());
+        return "end";
+    }
+}
+```
+
+
 
 
 
