@@ -1774,9 +1774,44 @@ end
 如果在锁的过期时间到了以后，任务还没有执行完步，如何保持一致性？
 
 ```
-Redisson有个看门狗的机制，会启动一个守护线程，定期（默认三十秒）检查key是否过期，如果任务未执行完毕且key已经过期，那么延长这个时间。
-这个时间检查时间的控制肯定需要控制在过期时间里面去检查，防止避免已经过期了，但是还没有检查，但是有相同的任务进来了。
+Redisson有个看门狗的机制，会启动一个守护线程，定期（默认三十秒）检查key是否过期，如果任务未执行完毕且key已经过期，那么延长这个时间。这个时间检查时间的控制肯定需要控制在过期时间里面去检查，防止避免已经过期了，但是还没有检查，但是有相同的任务进来了。
+
+默认情况下，**Redisson** 的锁看守狗（watchdog）会每隔一段时间刷新锁的过期时间，以确保锁不会因为进程崩溃而一直被占用。这个默认的看守狗超时时间是 **30 秒**，您可以通过配置项 `Config.lockWatchdogTimeout` 来更改它
 ```
+
+```java
+@GetMapping("/getLock")
+    public String getLock() throws InterruptedException {
+        final String KEY = "LOCK_KEY";
+        RLock lock = redissonClient.getLock(KEY);
+        // 可以使用 `lock.tryLock(waitTime, leaseTime, TimeUnit)` 方法，其中 `leaseTime` 参数表示锁的过期时间。
+        if (lock.tryLock(2, 10, TimeUnit.SECONDS)) {
+            try {
+                System.out.println("执行业务");
+            } finally {
+                if (lock.isLocked() && lock.isHeldByCurrentThread())
+                    lock.unlock();
+            }
+        } else {
+            // 没有获取到锁
+            return "error";
+        }
+        return "success";
+    }
+}
+```
+
+> `lock.tryLock()` 方法是 **Redisson** 中用于尝试获取分布式锁的方法。它具有以下特点：
+>
+> 1. **非阻塞式**：如果锁不可用，它会立即返回 `false`，而不会等待。
+> 2. **超时机制**：您可以设置最多等待的时间，如果在指定时间内无法获取锁，则返回 `false`。
+>
+> 关于默认过期时间，让我们来详细探讨一下：
+>
+> - **Redisson** 的分布式锁默认不会设置过期时间。这意味着如果您成功获取了锁，它将一直保持有效，直到您显式地释放它。
+> - 但是，**Redisson** 会定期刷新锁的过期时间，以防止锁被持有的进程意外终止而一直不释放。这个刷新过程是一个后台定时任务，它会在持有锁的情况下定期延长锁的生存时间。**（看门狗机制）**
+>
+> 请注意，在设计业务逻辑时，要考虑异常情况下的锁超时情况，以确保并发控制不会失效。
 
 
 
