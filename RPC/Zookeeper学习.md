@@ -227,19 +227,322 @@ cversion:子节点的版本号
 numChildren:当前节点的子节点个数
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
 # ZooKeeperJavaAPI操作
+
+
+
+![image-20240401104304269](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240401104304269.png)
+
+## 1.1 Curator介绍
+
+- Curator是 Apache ZooKeeper 的Java客户端库。
+- 常见的ZooKeeper Java APl :
+  - 原生Java API
+  - ZkClient
+  - Curator
+- Curator 项目的目标是简化ZodXeeper 客户端的使用。
+- Curator 最初是 Netfix 研发的,后来捐献了 Apache基金会,目前是Apache 的顶级项目。
+- 官网:https://curator.apache.org
+
+
+
+## 1.2 ZooKeeper JavaAPI 操作
+
+
+
+增加maven依赖
+
+```xml
+<dependency>
+            <groupId>org.apache.curator</groupId>
+            <artifactId>curator-framework</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.curator</groupId>
+            <artifactId>curator-recipes</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+```
+
+
+
+**Curator API 常用操作**
+
+- **建立连接**
+
+  > ```java
+  > @Test
+  >     public void connectTest() {
+  >         // 方式1
+  >         CuratorFramework curatorFramework = CuratorFrameworkFactory.builder()
+  >                 // 连接字符串
+  >                 .connectString("43.142.181.163:2181")
+  >                 // 连接超时时间
+  >                 .connectionTimeoutMs(10 * 1000)
+  >                 // 会话超时时间
+  >                 .sessionTimeoutMs(15 * 1000)
+  >                 // 重试策略
+  >                 .retryPolicy(new RetryForever(10 * 1000))
+  >                 // 自动帮你在此节点下对节点进行crud
+  >                 .namespace("JackNamespace")
+  >                 .build();
+  >         // 方式2
+  >         CuratorFramework client = CuratorFrameworkFactory.newClient("43.142.181.163:2181", 60000, 15000, new RetryForever(10 * 1000));
+  >         // 开启连接
+  >         client.start();
+  >     }
+  > ```
+
+- **添加节点**
+
+  > ```java
+  > @Test
+  >     public void createTest() throws Exception {
+  >         CuratorFramework curatorFramework = CuratorFrameworkFactory.newClient("43.142.181.163:2181", 60000, 15000, new RetryForever(10 * 1000));
+  >         // 开启连接
+  >         curatorFramework.start();
+  >         // 1.基本创建 默认数据是client的IP地址
+  >         String s = curatorFramework.create().forPath("/test");
+  >         System.out.println(s);
+  >         // 2.创建节点 带有数据
+  >         curatorFramework.create().forPath("/test1", "data".getBytes());
+  >         // 3.设置节点的类型 withMode 是个枚举类型
+  >         /* PERSISTENT(0, false, false, false, false),
+  >         PERSISTENT_SEQUENTIAL(2, false, true, false, false),
+  >         EPHEMERAL(1, true, false, false, false),
+  >         EPHEMERAL_SEQUENTIAL(3, true, true, false, false),
+  >         CONTAINER(4, false, false, true, false),
+  >         PERSISTENT_WITH_TTL(5, false, false, false, true),
+  >         PERSISTENT_SEQUENTIAL_WITH_TTL(6, false, true, false, true);*/
+  >         curatorFramework.create().withMode(CreateMode.CONTAINER).forPath("/test2", "data".getBytes());
+  >         curatorFramework.create().withMode(CreateMode.EPHEMERAL).forPath("/test3", "data".getBytes());
+  >         // 4. 创建多级节点 / app1 / p1
+  >         curatorFramework.create().creatingParentsIfNeeded().forPath("/test4/p1/p3", "data".getBytes());
+  >         curatorFramework.create().creatingParentContainersIfNeeded().forPath("/test5/p2/p3", "data".getBytes());
+  >         // 关闭连接
+  >         curatorFramework.close();
+  >     }
+  > ```
+  >
+  > ![image-20240401152336612](./img/18.png)
+
+- **删除节点**
+
+  > ```java
+  > @Test
+  >     public void deleteTest() throws Exception {
+  >         CuratorFramework curatorFramework = CuratorFrameworkFactory.newClient("43.142.181.163:2181", 60000, 15000, new RetryForever(10 * 1000));
+  >         // 开启连接
+  >         curatorFramework.start();
+  >         // 递归删除
+  >         Void unused = curatorFramework.delete().deletingChildrenIfNeeded().forPath("/test4");
+  >         System.out.println(unused);
+  >         // 删除单个节点
+  >         curatorFramework.delete().forPath("/test2");
+  >       	// 必须删除成功 防止网络抖动等
+  >         curatorFramework.delete().guaranteed().forPath("/test1");
+  >      	 // 删除回掉
+  >         curatorFramework.delete().inBackground(new BackgroundCallback() {
+  >             @Override
+  >             public void processResult(CuratorFramework curatorFramework, CuratorEvent curatorEvent) throws Exception {
+  >                 System.out.println("数据删除");
+  >                 int resultCode = curatorEvent.getResultCode();
+  >                 if (resultCode == 200) {
+  >                     // 删除成功 做干嘛
+  >                 }
+  >             }
+  >         }).forPath("/test1");
+  >         // 关闭连接
+  >         curatorFramework.close();
+  >     }
+  > ```
+  >
+  > 
+
+- **修改节点**
+
+  > ```java
+  >  @Test
+  >     public void updateNodeTest() throws Exception {
+  >         CuratorFramework curatorFramework = CuratorFrameworkFactory.newClient("43.142.181.163:2181", 60000, 15000, new RetryForever(10 * 1000));
+  >         // 开启连接
+  >         curatorFramework.start();
+  >         // 修改数据
+  >         curatorFramework.setData().forPath("/test1", "update".getBytes());
+  >         // 根据版本修改 防止多线程修改 根据版本号（通过查询出来的）去修改，每次修改后，版本就是会增加1 （为了原子性操作）
+  >         Stat stat = new Stat();
+  >         curatorFramework.getData().storingStatIn(stat).forPath("/test1");
+  >         curatorFramework.setData().withVersion(stat.getVersion()).forPath("/test1", "update1".getBytes());
+  >         // 关闭连接
+  >         curatorFramework.close();
+  >     }
+  > ```
+
+- **查询节点**
+
+  > ```java
+  > /**
+  >      * <p> 查询节点:
+  >      * 1.查询数据:get
+  >      * 2.查询子节点: ls
+  >      * 3.查询节点状态信息:ls-s
+  >      * <p>
+  >      *
+  >      * @author JackGao
+  >      * @since 4/1/24 15:44
+  >      */
+  >     @Test
+  >     public void getNodeTest() throws Exception {
+  >         CuratorFramework curatorFramework = CuratorFrameworkFactory.newClient("43.142.181.163:2181", 60000, 15000, new RetryForever(10 * 1000));
+  >         // 开启连接
+  >         curatorFramework.start();
+  >         // 获取节点数据 get 
+  >         byte[] bytes = curatorFramework.getData().forPath("/test1");
+  >         System.err.println(new String(bytes));
+  >         // 根据路径获取子节点 ls
+  >         List<String> strings = curatorFramework.getChildren().forPath("/");
+  >         System.err.println(strings);
+  >         // 节点状态信息 ls -s
+  >         Stat stat = new Stat();
+  >         byte[] bytes1 = curatorFramework.getData().storingStatIn(stat).forPath("/test1");
+  >         System.err.println(stat);
+  >         System.err.println("bytes1" + new String(bytes1));
+  >         // 关闭连接
+  >         curatorFramework.close();
+  >     }
+  > ```
+
+- **Watch事件监听**
+
+  > TODO
+
+- **分布式锁实现**
+
+  > ```java
+  > InterProcessMutex lock = new InterProcessMutex(client, lockPath);
+  > if (lock.acquire(maxWait, waitUnit)) {
+  >     try {
+  >         // do some work inside of the critical section here
+  >     } finally {
+  >         lock.release();
+  >     }
+  > }
+  > ```
+
+### 1.2.1 Curator API 常用操作-Watch事件监听
+
+- ZooKeeper 允许用户在指定节点上注册一些Watcher，并且在一些特定事件触发的时候，ZooKeeper 服务端会将事件通知到感兴趣的客户端上去，该机制是ZooKeeper实现分布式协调服务的重要特性。
+
+- ZooKeeper 中引入了Watcher机制来实现了发布/订阅功能能，能够让多个订阅者同时监听某一个对象，当一个对象自身状态变化时，会通知所有订阅者。
+
+- ZooKeeper 原生支持通过注册Watcher来进行事件监听，但是其使用并不是特别方便需要开发人员自己反复注册Watcher，比较繁琐。
+
+- Curator引|入了 Cache 来实现对 ZooKeeper 服务端事件的监听。
+
+- ZooKeeper提供了三种Watcher:
+  - **NodeCache**:只是监听某一个特定的节点
+  
+    > ```java
+    > @Test
+    >     public void watchNodeTest() throws Exception {
+    >         CuratorFramework curatorFramework = CuratorFrameworkFactory.newClient("43.142.181.163:2181", 60000, 15000, new RetryForever(10 * 1000));
+    >         // 开启连接
+    >         curatorFramework.start();
+    >         NodeCache nodeCache = new NodeCache(curatorFramework, "/test002");
+    >         nodeCache.getListenable().addListener(new NodeCacheListener() {
+    >             @Override
+    >             public void nodeChanged() throws Exception {
+    >                 System.out.println("节点变化");
+    >                 byte[] data = nodeCache.getCurrentData().getData();
+    >                 System.out.println("变化后的数据为：" + new String(data));
+    >             }
+    >         });
+    >         // //3.开启监听.如果设置为true，则开启监听是，加载缓冲数据
+    >         nodeCache.start(true);
+    >         while (true) {
+    > 
+    >         }
+    >         // 关闭连接
+    > //        curatorFramework.close();
+    >     }
+    > ```
+  
+  - **PathChildrenCache**:监控一个ZNode的子节点
+  
+    > ```java
+    > @Test
+    >     public void watchChildNodeTest() throws Exception {
+    >         CuratorFramework curatorFramework = CuratorFrameworkFactory.newClient("43.142.181.163:2181", 60000, 15000, new RetryForever(10 * 1000));
+    >         // 开启连接
+    >         curatorFramework.start();
+    >         // 创建
+    >         PathChildrenCache pathChildrenCache = new PathChildrenCache(curatorFramework, "/test1", true);
+    >         // 增加监听
+    >         pathChildrenCache.getListenable().addListener(new PathChildrenCacheListener() {
+    >             @Override
+    >             public void childEvent(CuratorFramework curatorFramework, PathChildrenCacheEvent pathChildrenCacheEvent) throws Exception {
+    >                 System.out.println("节点变化");
+    >                 List<ChildData> currentData = pathChildrenCache.getCurrentData();
+    >                 System.out.println("变化后的数据为：" + currentData.toString());
+    >                 System.out.println("event：" + pathChildrenCacheEvent.toString());
+    >                 PathChildrenCacheEvent.Type type = pathChildrenCacheEvent.getType();
+    >                 if (type.equals(PathChildrenCacheEvent.Type.CHILD_UPDATED)) {
+    >                     System.out.println("子节点数据更新了");
+    >                 }
+    >             }
+    >         });
+    > 
+    >         // //3.开启监听.如果设置为true，则开启监听是，加载缓冲数据
+    >         pathChildrenCache.start();
+    >         while (true) {
+    > 
+    >         }
+    >         // 关闭连接
+    > //        curatorFramework.close();
+    >     }
+    > ```
+    >
+    > 
+  
+  - TreeCache:可以监控整个树上的所有节点，类似于PathChildrenCache和NodeCache的组合
+  
+    > ```java
+    >    @Test
+    >     public void watchTreeAndChildNodeTest() throws Exception {
+    >         CuratorFramework curatorFramework = CuratorFrameworkFactory.newClient("43.142.181.163:2181", 60000, 15000, new RetryForever(10 * 1000));
+    >         // 开启连接
+    >         curatorFramework.start();
+    >         // 创建
+    >         TreeCache treeCache = new TreeCache(curatorFramework, "/");
+    >         // 增加监听
+    >         treeCache.getListenable().addListener(new TreeCacheListener() {
+    >             @Override
+    >             public void childEvent(CuratorFramework curatorFramework, TreeCacheEvent treeCacheEvent) throws Exception {
+    >                 System.out.println("节点变化");
+    >                 ChildData currentData = treeCache.getCurrentData("/");
+    >                 System.out.println("变化后的数据为：" + currentData.toString());
+    >                 System.out.println("event：" + treeCacheEvent.toString());
+    >             }
+    >         });
+    >         // 3.开启监听.如果设置为true，则开启监听是，加载缓冲数据
+    >         treeCache.start();
+    >         while (true) {
+    > 
+    >         }
+    >         // 关闭连接
+    > //        curatorFramework.close();
+    >     }
+    > 
+    > ```
+    >
+    > <img src="./img/19.png" alt="image-20240401171918162" style="zoom:50%;" />
+
+
+
+
+
+
 
 # ZooKeeper集群搭建
 
