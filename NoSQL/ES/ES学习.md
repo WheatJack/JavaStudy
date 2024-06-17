@@ -2,6 +2,10 @@
 
 ## 初识elasticsearch
 
+> https://www.bilibili.com/video/BV1Gh411j7d6/?p=56&spm_id_from=pageDriver&vd_source=a20ecb9885592a04cda8e0c3cf4ae1f1
+
+
+
 **正向索引和倒排索引**
 
 elasticsearch采用倒排索引:
@@ -9,7 +13,7 @@ elasticsearch采用倒排索引:
 - · 文档(document):每条数据就是一个文档
 - 词条(term):文档按照语义分成的词语
 
-<img src="/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/1.png" alt="image-20240608225433122" style="zoom:40%;" /><img src="/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/2.png" alt="image-20240608225610680" style="zoom: 25%;" />
+<img src="./img/1.png" alt="image-20240608225433122" style="zoom:40%;" /><img src="./img/2.png" alt="image-20240608225610680" style="zoom: 25%;" />
 
 
 
@@ -17,7 +21,7 @@ elasticsearch采用倒排索引:
 
 elasticsearch是面向文档存储的，可以是数据库中的一条商品数据，一个订单信息文档数据会被序列化为json格式后存储在elasticsearch中。
 
-![image-20240608225737108](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/3.png)
+![image-20240608225737108](./img/3.png)
 
 ### 索引（Index）
 
@@ -25,7 +29,7 @@ elasticsearch是面向文档存储的，可以是数据库中的一条商品数�
 
   > 类似mysql对表结构
 
-![image-20240608225835582](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/4.png)
+![image-20240608225835582](./img/4.png)
 
 ### 概念对比
 
@@ -42,7 +46,7 @@ elasticsearch是面向文档存储的，可以是数据库中的一条商品数�
 - Mysql:擅长事务类型操作，可以确保数据的安全和一致性
 - Elasticsearch:擅长海量数据的搜索、分析、计算
 
-![image-20240609132233638](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/6.png)
+![image-20240609132233638](./img/6.png)
 
 
 
@@ -50,7 +54,7 @@ elasticsearch是面向文档存储的，可以是数据库中的一条商品数�
 
 es在创建倒排索引时需要对文档分词;在搜索时，需要对用户输入内容分词。但默认的分词规则对中文处理并不友好。
 
-![image-20240609133626742](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/7.png)
+![image-20240609133626742](./img/7.png)
 
 > analyzer 是分词器类型
 >
@@ -60,15 +64,15 @@ es在创建倒排索引时需要对文档分词;在搜索时，需要对用户�
 
 **使用IK分词器**
 
-![image-20240609141146147](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/11.png)
+![image-20240609141146147](./img/11.png)
 
 #### 安装IK分词器
 
 > 见GitHub的README文件，注意统一版本
 
-![image-20240604222356583](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/12.png)
+![image-20240604222356583](./img/12.png)
 
-![image-20240604222411174](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/13.png)
+![image-20240604222411174](./img/13.png)
 
 分词器的作用是什么?
 
@@ -148,7 +152,7 @@ mapping是对索引库中文档的约束，常见的mapping属性包括：
 
 - properties：该字段的子字段
 
-![image-20240609191415355](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/10.png)
+![image-20240609191415355](./img/10.png)
 
 ```json
 {
@@ -255,7 +259,7 @@ POST /index/_doc/id
 }
 ```
 
-![image-20240609173753479](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/14.png)
+![image-20240609173753479](./img/14.png)
 
 ### **查询文档**
 
@@ -263,7 +267,7 @@ POST /index/_doc/id
 GET /index/_doc/文档ID
 ```
 
-![image-20240609173925625](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/15.png)
+![image-20240609173925625](./img/15.png)
 
 ### 删除文档
 
@@ -279,11 +283,11 @@ DELETE /index/_doc/文档ID
 PUT /index/_doc/_id
 ```
 
-![image-20240609180800892](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/16.png)
+![image-20240609180800892](./img/16.png)
 
 方式二:增量修改，修改指定字段值
 
-![image-20240609180849050](/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/17.png)
+![image-20240609180849050](./img/17.png)
 
 
 
@@ -620,13 +624,13 @@ POST /indexName/_search
       },
 ```
 
-<img src="/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/8.png" alt="分值计算" style="zoom:50%;" />
+<img src="./img/8.png" alt="分值计算" style="zoom:50%;" />
 
 **相关性算法**
 
 当我们利用**match**查询时，文档结果会根据与搜索词条的关联度打分(score)，返回结果时按照分值降序排列。
 
-<img src="/Users/gaoshang/IdeaProjects/JavaStudy/NoSQL/ES/img/9.png" alt="image-20240610155649782" style="zoom:50%;" />
+<img src="./img/9.png" alt="image-20240610155649782" style="zoom:50%;" />
 
 > elasticsearch中的相关性打分算法是什么?
 >
@@ -790,7 +794,435 @@ IP是指定IP，或者IP为这个IP，时间不大于1718006000782，过滤在�
 
 
 
+## 搜索结果处理
+
+### 排序
+
+elasticsearch支持对搜索结果排序，默认是根据相关度算分(_score)来排序。可以排序字段类型有：**kevword类型数值类型、地理坐标类型、日期类型等。**
+
+```json
+## POST /user_index/_search
+
+{
+  "query": {
+    "match_all": {}
+  },
+  "sort":[
+    {
+      "date": "desc"
+    }
+  ]
+}
+
+
+## 模板
+
+{
+  "query": {
+    "match_all": {}
+  },
+  "sort":[
+    {
+      "FIELD": "desc"
+    }
+  ]
+}
+```
+
+> 指定排序后，score就会失效
+
+查看经纬度地址：https://lbs.amap.com/demo/javascript-api-v2/example/axis/transformate-between-coordinates-of-lnglat-and-map-container
 
 
 
+### 分页
+
+elasticsearch 默认情况下只返回top10的数据。而如果要查询更多数据就需要修改分页参数了。elasticsearch中通过修改**from**、**size**参数来控制要返回的分页结果:
+
+```
+#POST /user_index/_search
+{
+  "query": {
+    "match_all": {}
+  },
+  "from":0,
+  "size":1,
+  "sort":[
+    {
+      "date": "desc"
+    }
+  ]
+}
+```
+
+> <img src="/Users/gaoshang/Library/Application Support/typora-user-images/image-20240617213113003.png" alt="image-20240617213113003" style="zoom:50%;" />
+
+> - 优点：支持随机翻页
+> - 缺点：深度分页问题，默认查询上限(from+size)是10000
+> - 场景：百度、京东、谷歌、淘宝这样的随机翻页搜索
+
+#### 深度分页问题
+
+ES是分布式的，所以会面临深度分页问题。例如按price排序后，获取from=990，size =10的数据：
+
+1. 首先在每个数据分片上都排序并查询前1000条文档。
+2. 然后将所有节点的结果聚合，在内存中重新排序选出前1000条文档
+3. 最后从这1000条中，选取从990开始的10条文档
+
+> <img src="/Users/gaoshang/Library/Application Support/typora-user-images/image-20240617213315017.png" alt="image-20240617213315017" style="zoom:50%;" />
+
+如果搜索页数过深，或者结果集(from +size)越大，对内存和CPU的消耗也越高。因此ES设定结果集查询的上限是10000。
+
+#### 深度分页解决方案
+
+针对深度分页，ES提供了两种解决方案，官方文档TODO：
+
+> https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#search-after
+
+**search after**：分页时需要排序，原理是从上一次的排序值开始，查询下一页数据。官方推荐使用的方式。
+
+> - 优点：没有查询上限(单次查询的size不超过10000)
+> - 缺点：只能向后逐页查询，不支持随机翻页
+> - 场景：没有随机翻页需求的搜索，例如手机向下滚动翻页
+
+scroll：原理将排序数据形成快照，保存在内存。官方已经不推荐使用。
+
+> - 优点：没有查询上限(单次查询的size不超过10000)
+> - 缺点：会有额外内存消耗，并且搜索结果是非实时的
+> - 场景：海量数据的获取和迁移。从ES7.1开始不推荐，建议用 aftersearch方案。
+
+### 高亮
+
+高亮：就是在搜索结果中把搜索关键字突出显示。原理是这样的：
+
+- 将搜索结果中的关键字用标签标记出来
+- 在页面中给标签添加css样式
+
+```json
+{
+  "query": {
+    "match": {
+      "info": "今天"
+    }
+  },
+  "from": 0,
+  "size": 1,
+  "highlight": {
+    "fields": {
+      "info": {  // 高亮字段
+        "pre_tags": "<em>", // 高亮标签
+        "post_tags": "</em?"
+      }
+    }
+  },
+  "sort": [
+    {
+      "date": "desc"
+    }
+  ]
+}
+
+```
+
+<img src="./img/18.png" alt="image-20240617220139636" style="zoom:50%;" />
+
+
+
+## RestClient查询文档
+
+
+
+### match查询
+
+```java
+ private void queryMatchAllDocument() throws IOException {
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpHost.create("http://127.0.0.1:9200")));
+        SearchRequest request = new SearchRequest("user_index");
+        // matchAll
+        request.source().query(QueryBuilders.matchAllQuery());
+        SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+        System.out.println(search);
+        restHighLevelClient.close();
+    }
+```
+
+
+
+### 全文检索查询
+
+全文检索的match和multi match查询与match_all的API基本一致。差别是查询条件，也就是query的部分。
+
+同样是利用QueryBuilders提供的方法:
+
+```java
+private void queryMatchDocument() throws IOException {
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpHost.create("http://127.0.0.1:9200")));
+        SearchRequest request = new SearchRequest("user_index");
+        // match
+        request.source().query(QueryBuilders.matchQuery("info","天气"))
+                .query(QueryBuilders.matchQuery("_id","NgwjAZABUVoIbccrLhId"));
+        SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+        System.out.println(search);
+        restHighLevelClient.close();
+    }
+```
+
+**多字段查询**
+
+```java
+request.source()..query(QueryBuilders.multiMatchQuery("1","email","userName"));
+```
+
+
+
+### 精确查询
+
+精确查询常见的有term查询和range查询，同样利用QueryBuilders实现：
+
+```java
+ private void queryTermDocument() throws IOException {
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpHost.create("http://127.0.0.1:9200")));
+        SearchRequest request = new SearchRequest("user_index");
+        // termQuery
+        request.source().query(QueryBuilders.termQuery("_id","NgwjAZABUVoIbccrLhId"));
+        SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+        System.out.println(search);
+        restHighLevelClient.close();
+    }
+```
+
+```java
+private void queryRangeDocument() throws IOException {
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpHost.create("http://127.0.0.1:9200")));
+        SearchRequest request = new SearchRequest("user_index");
+        request.source().query(QueryBuilders.rangeQuery("date").gte("1718003618242").lte("1718003618242"));
+        SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+        System.out.println(search);
+        restHighLevelClient.close();
+    }
+```
+
+
+
+### 复合查询-boolean query
+
+精确查询常见的有term查询和range查询，同样利用QueryBuilders实现：
+
+```java
+private void queryBooleanDocument() throws IOException {
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpHost.create("http://127.0.0.1:9200")));
+        SearchRequest request = new SearchRequest("user_index");
+        // 构建布尔查询
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery()
+                // 必须匹配的查询条件
+                .must(QueryBuilders.termQuery("ip", "112.2.1.1"))
+                // 可能匹配的查询条件
+                .should(QueryBuilders.rangeQuery("date").gte("1718003618242").lte("1718003618242"))
+                // 必须不匹配的查询条件
+                .mustNot(QueryBuilders.termQuery("ip", "112.1.1.0"));
+        request.source().query(boolQueryBuilder);
+        SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+        // 执行搜索请求
+        System.out.println(search);
+        restHighLevelClient.close();
+    }
+```
+
+
+
+### 排序和分页
+
+搜索结果的排序和分页是与query同级的参数，对应的API如下:
+
+```java
+ private void queryPageSortDocument() throws IOException {
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpHost.create("http://127.0.0.1:9200")));
+        SearchRequest request = new SearchRequest("user_index");
+        request.source().query(QueryBuilders.matchAllQuery());
+        request.source().from(0).size(1)
+                .sort("date", SortOrder.DESC);
+        SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+        // 执行搜索请求
+        System.out.println(search);
+        restHighLevelClient.close();
+    }
+```
+
+### 高亮
+
+高亮API包括请求DSL构建和结果解析两部分。我们先看请求的DSL构建:
+
+```java
+ private void queryHighLightDocument() throws IOException {
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpHost.create("http://127.0.0.1:9200")));
+        SearchRequest request = new SearchRequest("user_index");
+        request.source().query(QueryBuilders.matchQuery("userName", "名字"));
+        request.source().highlighter(new HighlightBuilder()
+                .field("userName")
+                // 判断是否与插叙字段匹配
+                .requireFieldMatch(Boolean.FALSE));
+        request.source().from(0).size(1)
+                .sort("date", SortOrder.DESC);
+        SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+        // 执行搜索请求
+        System.out.println(search);
+        restHighLevelClient.close();
+    }
+```
+
+
+
+高亮结果解析
+
+```java
+  SearchHits hits = search.getHits();
+        for (SearchHit hit : hits) {
+            Map<String, HighlightField> highlightFields = hit.getHighlightFields();
+            HighlightField userName = highlightFields.get("userName");
+            String sourceAsString = hit.getSourceAsString();
+            User user = new Gson().fromJson(sourceAsString, User.class);
+            // 设置高亮的内容
+            user.setUserName(userName.getFragments()[0].toString());
+        }
+```
+
+
+
+
+
+![image-20240615223015083](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240615223015083.png)
+
+返回sort就是最终的distinct
+
+![image-20240615223401415](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240615223401415.png)
+
+![image-20240615223454554](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240615223454554.png)
+
+
+
+
+
+![image-20240615230357596](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240615230357596.png)
+
+
+
+![image-20240616134519906](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616134519906.png)
+
+![image-20240616134601409](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616134601409.png)
+
+![image-20240616134925384](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616134925384.png)
+
+![image-20240616135000114](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135000114.png)
+
+![image-20240616135143516](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135143516.png)
+
+![image-20240616135313632](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135313632.png)
+
+
+
+![image-20240616135500461](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135500461.png)
+
+![image-20240616135532723](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135532723.png)
+
+![image-20240616135648990](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135648990.png)
+
+![image-20240616135918192](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135918192.png)
+
+![image-20240616140223315](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616140223315.png)
+
+![image-20240616141815098](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616141815098.png)
+
+> 聚合的时候 必须和查询使用相同的query 不能查询整个数据库信息
+
+
+
+![image-20240616142610679](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616142610679.png)
+
+
+
+
+
+![image-20240616142827833](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616142827833.png)
+
+![image-20240616142859038](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616142859038.png)
+
+
+
+![image-20240616143212785](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616143212785.png)
+
+![image-20240616143340808](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616143340808.png)
+
+> Pingyin定义规则可以添加很多参数。去官网看readme
+
+![image-20240616143630592](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616143630592.png)
+
+![image-20240616143735994](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616143735994.png)
+
+![image-20240616143817188](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616143817188.png)
+
+![image-20240616143940587](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616143940587.png)
+
+![image-20240616144025388](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616144025388.png)
+
+![image-20240616144212574](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616144212574.png)
+
+![image-20240616144227054](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616144227054.png)
+
+
+
+![image-20240616190833330](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616190833330.png)
+
+![image-20240616191142981](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616191142981.png)
+
+
+
+
+
+
+
+![image-20240616191514322](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616191514322.png)
+
+
+
+![image-20240616191606723](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616191606723.png)
+
+![image-20240616191629846](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616191629846.png)
+
+![image-20240616191752680](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616191752680.png)
+
+![image-20240616191821542](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616191821542.png)
+
+![image-20240616191928644](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616191928644.png)
+
+![image-20240616192556193](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616192556193.png)
+
+![image-20240616193146283](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616193146283.png)
+
+![image-20240616193357253](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616193357253.png)
+
+![image-20240616194147262](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616194147262.png)
+
+![image-20240616194510943](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616194510943.png)
+
+![image-20240616194637872](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616194637872.png)
+
+![image-20240616194715740](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616194715740.png)
+
+![image-20240616194913912](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616194913912.png)
+
+查询在哪个分片
+
+![image-20240616195029543](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616195029543.png)
+
+![image-20240616195132205](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616195132205.png)
+
+![image-20240616195243170](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616195243170.png)
+
+![image-20240616195339030](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616195339030.png)
+
+
+
+![image-20240616195447188](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616195447188.png)
+
+![image-20240616195625066](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616195625066.png)
 
