@@ -1072,7 +1072,7 @@ private void queryBooleanDocument() throws IOException {
 
 
 
-高亮结果解析
+**高亮结果解析**
 
 ```java
   SearchHits hits = search.getHits();
@@ -1088,43 +1088,263 @@ private void queryBooleanDocument() throws IOException {
 
 
 
+### 距离排序
+
+```java
+private void queryDistinctDocument() throws IOException {
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpHost.create("http://127.0.0.1:9200")));
+        SearchRequest request = new SearchRequest("user_index");
+
+        request.source().sort(SortBuilders.geoDistanceSort("location", new GeoPoint("31.11,121.00"))
+                .order(SortOrder.DESC)
+                .unit(DistanceUnit.KILOMETERS)
+        );
+        request.source().from(0).size(10)
+                .sort("date", SortOrder.DESC);
+
+        SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+        System.out.println(search);
+        restHighLevelClient.close();
+    }
+```
+
+> 返回sort就是最终的distinct
+>
+> ```json
+> {
+>                 "_index": "user_index",
+>                 "_type": "_doc",
+>                 "_id": "NgwjAZABUVoIbccrLhId",
+>                 "_score": null,
+>                 "_source": {
+>                     "userName": "名字呀1ahsahs",
+>                     "info": "今天的天气数字是1hahhahah",
+>                     "email": "1829190@qq.com",
+>                     "ip": "112.2.1.1",
+>                     "date": 1718006000782,
+>                     "location": "21.41,31.21"
+>                 },
+>                 "sort": [
+>                     8779.72497595696,
+>                     1718006000782
+>                 ]
+>             },
+> 
+> ```
+
+### 组合查询
+
+> 类似的需求，例如：
+>
+> - 搜索排名中 交钱的排名第一 需要加是否广告的标识位。isAD字段，然后查询的时候 给isAD的增加权重
+
+**Java Code**
+
+```java
+
+private void queryRelateDocument() throws IOException {
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpHost.create("http://127.0.0.1:9200")));
+        SearchRequest request = new SearchRequest("user_index");
+        FunctionScoreQueryBuilder functionScoreQueryBuilder = QueryBuilders.functionScoreQuery(
+                QueryBuilders.matchQuery("userName", "名字"), new FunctionScoreQueryBuilder.FilterFunctionBuilder[]{
+                        new FunctionScoreQueryBuilder.FilterFunctionBuilder(QueryBuilders.termQuery("userInfo", "1"),
+                                ScoreFunctionBuilders.weightFactorFunction(5)
+                        )
+                }
+        );
+        request.source().query(functionScoreQueryBuilder);
+        request.source().from(0).size(10)
+                .sort("date", SortOrder.DESC);
+        SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+        System.out.println(search);
+        restHighLevelClient.close();
+    }
+```
+
+**ES-Query**
+
+```json
+{
+  "query": {
+    "function_score": {
+      "query": {
+        "match": {
+          "userName": "名字"
+        }
+      },
+      "functions": [
+        {
+          "filter": {
+            "term": {
+              "userInfo": "1"
+            }
+          },
+          "weight": 10
+        }
+      ]
+    }
+  }
+}
+```
 
 
-![image-20240615223015083](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240615223015083.png)
 
-返回sort就是最终的distinct
+# 分布式搜索引擎
 
-![image-20240615223401415](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240615223401415.png)
+## 数据聚合
 
-![image-20240615223454554](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240615223454554.png)
+### 聚合的种类
+
+聚合(aggregations)可以实现对文档数据的统计、分析、运算。聚合常见的有三类:
+
+- 桶(**Bucket**)聚合:用来对文档做分组
+  - **TermAggregation**：按照文档字段值分组
+  - **Date Histogram**：按照日期阶梯分组，例如一周为一组，或者一月为一组
+
+- 度量(**Metric**)聚合:用以计算一些值，比如:最大值、最小值、平均值等
+  - Avg：求平均值
+  - Max：求最大值
+  - Min：求最小值
+  - Stats：同时求max、min、avg、sum等
+
+- 管道(**pipeline**)聚合：其它聚合的结果为基础做聚合
+
+> 参与聚合的字段类型必须是:
+>
+> - keyword
+> - 数值
+> - 日期
+> - 布尔
+
+### DSL实现聚合
+
+
+
+#### Bucket聚合
+
+SQL
+
+```
+group by email;
+```
+
+```
+{
+  "size": 0, // 设置size为0，结果中不包含文档，只包含聚合结果
+  "aggs": { // // 定义聚合
+    "brandAggs": { // //给聚合起个名字
+      "terms": { // 聚合的类型，按照邮箱值聚合，所以选择term
+        "field": "email", // 参与聚合的字段
+        "size": 20 // 希望获取的聚合结果数量
+      }
+    }
+  }
+}
+```
+
+
+
+#### Bucket聚合-聚合结果排序
+
+默认情况下，BucKet聚合会统计Bucket内的文档数量，记为 count，并且按照 count降序排序。我们可以修改结果排序方式:
+
+```
+{
+  "size": 0,
+  "aggs": {
+    "brandAggs": {
+      "terms": {
+        "order": {
+          "_count": "asc" // 按_count 升序排列
+        },
+        "field": "email",
+        "size": 20
+      }
+    }
+  }
+}
+```
+
+
+
+#### Bucket聚合-限定聚合范围
+
+默认情况下，Bucket聚合是对索引库的所有文档做聚合，我们可以限定要聚合的文档范围，只要添加query条件即可:
+
+```
+{
+  "query": {
+    "term": {
+      "ip": "112.2.1.1"
+    }
+  },
+  "size": 0,
+  "aggs": {
+    "brandAggs": {
+      "terms": {
+        "order": {
+          "_count": "asc"
+        },
+        "field": "email",
+        "size": 20
+      }
+    }
+  }
+}
+```
+
+**总结**
+
+```
+aggs代表聚合，与query同级，此时query的作用是?
+	·限定聚合的的文档范围
+聚合必须的三要素:
+	聚合名称
+	聚合类型
+	聚合字段
+聚合可配置属性有:
+	·size:指定聚合结果数量
+	·order:指定聚合结果排序方式
+	·field:指定聚合字段
+```
+
+#### DSL实现Metrics 聚合
+
+例如，我们要求获取每个品牌的用户评分的min、max、avg等值:我们可以利用stats聚合：
+
+> 在聚合内部再一次聚合group查询
 
 
 
 
-
-![image-20240615230357596](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240615230357596.png)
-
-
-
-![image-20240616134519906](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616134519906.png)
-
-![image-20240616134601409](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616134601409.png)
-
-![image-20240616134925384](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616134925384.png)
-
-![image-20240616135000114](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135000114.png)
-
-![image-20240616135143516](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135143516.png)
-
-![image-20240616135313632](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135313632.png)
-
-
-
-![image-20240616135500461](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135500461.png)
-
-![image-20240616135532723](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135532723.png)
 
 ![image-20240616135648990](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135648990.png)
+
+
+
+
+
+### RestAPI实现聚合
+
+
+
+
+
+## 自动补全
+
+
+
+## 数据同步
+
+
+
+## 集群
+
+
+
+
+
+
 
 ![image-20240616135918192](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135918192.png)
 
