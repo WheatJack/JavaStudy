@@ -1314,45 +1314,120 @@ aggs代表聚合，与query同级，此时query的作用是?
 
 > 在聚合内部再一次聚合group查询
 
-
-
-
-
-![image-20240616135648990](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135648990.png)
-
-
+```json
+{
+  "size": 0,
+  "aggs": {
+    "brandAgg": {
+      "terms": {
+        "field": "ip",
+        "size": 20
+      },
+      "aggs": { // 子聚合 对聚合后的每组进行处理计算
+        "score_test": { // 聚合名称
+          "stats": { // 聚合类型 这里stats可以计算min max avg等
+            "field": "score" // 聚合字段
+          }
+        }
+      }
+    }
+  }
+}
+```
 
 
 
 ### RestAPI实现聚合
 
+实现IP聚合
 
+```java
+private void aggregationDocument() throws IOException {
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpHost.create("http://127.0.0.1:9200")));
+        SearchRequest request = new SearchRequest("user_index");
+        request.source().aggregation(AggregationBuilders.terms("brand_agg")
+                .field("ip")
+                .size(20)
+        );
+        request.source().from(0).size(10)
+                .sort("date", SortOrder.DESC);
+        SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+        Aggregations aggregations = search.getAggregations();
+        Aggregation brandAgg = aggregations.get("brand_agg");
+        Terms brandTermsAgg = (Terms) brandAgg;
+        List<? extends Terms.Bucket> buckets = brandTermsAgg.getBuckets();
+        for (Terms.Bucket bucket : buckets) {
+            String key = bucket.getKeyAsString();
+            long docCount = bucket.getDocCount();
+            System.out.println("Brand: " + key + ", Count: " + docCount);
+        }
+        restHighLevelClient.close();
+    }
+```
+
+继续获取的到结果
+
+```java
+Aggregations aggregations = search.getAggregations();
+        Aggregation brandAgg = aggregations.get("brand_agg");
+        Terms brandTermsAgg = (Terms) brandAgg;
+        List<? extends Terms.Bucket> buckets = brandTermsAgg.getBuckets();
+        for (Terms.Bucket bucket : buckets) {
+            String key = bucket.getKeyAsString();
+            long docCount = bucket.getDocCount(); 
+            System.out.println("Brand: " + key + ", Count: " + docCount);
+        }
+```
+
+```
+# 打印结果
+Brand: 112.2.1.1, Count: 2
+Brand: 212.2.1.1, Count: 2
+Brand: 12.2.1.1, Count: 1
+```
+
+案例：
+
+实现多个字短的聚合处理
+
+```java
+private void aggregationDocument() throws IOException {
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(RestClient.builder(HttpHost.create("http://127.0.0.1:9200")));
+        SearchRequest request = new SearchRequest("user_index");
+        // ip聚合
+        request.source().aggregation(AggregationBuilders.terms("brand_agg")
+                .field("ip")
+                .size(20)
+        );
+        // 邮件聚合
+        request.source().aggregation(AggregationBuilders.terms("email_agg")
+                .field("email")
+                .size(20)
+        );
+        request.source().from(0).size(10)
+                .sort("date", SortOrder.DESC);
+        SearchResponse search = restHighLevelClient.search(request, RequestOptions.DEFAULT);
+        Aggregations aggregations = search.getAggregations();
+        Aggregation brandAgg = aggregations.get("brand_agg");
+        Aggregation emailAgg = aggregations.get("email_agg");
+        Terms brandTermsAgg = (Terms) brandAgg;
+        List<? extends Terms.Bucket> buckets = brandTermsAgg.getBuckets();
+        for (Terms.Bucket bucket : buckets) {
+            String key = bucket.getKeyAsString();
+            long docCount = bucket.getDocCount();
+            System.out.println("Brand: " + key + ", Count: " + docCount);
+        }
+        restHighLevelClient.close();
+    }
+```
+
+> 聚合的时候 必须和查询使用相同的query 不能查询整个数据库信息
 
 
 
 ## 自动补全
 
 
-
-## 数据同步
-
-
-
-## 集群
-
-
-
-
-
-
-
-![image-20240616135918192](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616135918192.png)
-
-![image-20240616140223315](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616140223315.png)
-
-![image-20240616141815098](/Users/gaoshang/Library/Application Support/typora-user-images/image-20240616141815098.png)
-
-> 聚合的时候 必须和查询使用相同的query 不能查询整个数据库信息
 
 
 
@@ -1397,6 +1472,20 @@ aggs代表聚合，与query同级，此时query的作用是?
 
 
 
+
+
+
+
+
+
+
+
+
+## 数据同步
+
+
+
+## 集群
 
 
 
